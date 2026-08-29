@@ -110,6 +110,12 @@ processResources {
             'minecraft_version_range': minecraft_version_range,
             'fabric_version'         : fabric_version,
             'fabric_loader_version'  : fabric_loader_version,
+            // Read with findProperty rather than directly: build-logic is applied
+            // to every module, and a module that never sees these still has to
+            // configure. A missing value would fail the whole build at
+            // configuration time instead of only where it is used.
+            'neoforge_version'             : findProperty('neoforge_version') ?: '',
+            'neoforge_loader_version_range': findProperty('neoforge_loader_version_range') ?: '',
             'mod_name'               : mod_name,
             'mod_author'             : mod_author,
             'mod_id'                 : mod_id,

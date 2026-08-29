@@ -131,6 +131,36 @@ public final class IpAddressRule extends RegexRule {
     private static final Pattern LIBRARY_LINE =
             Pattern.compile("\\s{2,}[\\w.\\-]+\\.(?:dll|exe|so|dylib)\\b", Pattern.CASE_INSENSITIVE);
 
+    /**
+     * The third mod-list format, and the one a NeoForge client prints at startup:
+     * an indented display name, the version, and the mod id in brackets.
+     *
+     * <pre>
+     *         Ala Logger 0.1.0 (alalogger)
+     *         Minecraft 26.2 (minecraft)
+     *         NeoForge 26.2.0.67 (neoforge)
+     * </pre>
+     *
+     * <p>Found by running the mod on NeoForge and reading what it published:
+     * {@code NeoForge 26.2.0.67 (neoforge)} came back as
+     * {@code NeoForge ***.***.***.*** (neoforge)}. Four parts, all below 256 and
+     * no trailing suffix, so neither the value exemptions nor the {@code -beta}
+     * guard applies - and the other two line guards do not match this shape,
+     * because there is no colon and no {@code .jar |} column.
+     *
+     * <p>Worth its own pattern because of WHERE it appears. This block is the
+     * header of the log, the first thing anyone reads, and the loader version is
+     * the most useful line in it. Losing it costs more than every other false
+     * positive here combined: the person helping cannot even tell which platform
+     * the log came from.
+     *
+     * <p>Bounded deliberately: the version has to start with a digit and the
+     * brackets have to close at the end of the line, which is what keeps an
+     * ordinary sentence ending in a parenthetical from passing as a mod row.
+     */
+    private static final Pattern MOD_ID_LINE =
+            Pattern.compile("\\s{2,}\\S.*\\s[0-9][\\w.+\\-]*\\s+\\([a-z0-9_.\\-]+\\)\\s*$");
+
     @Override
     public String key() {
         return "ip";
@@ -176,6 +206,10 @@ public final class IpAddressRule extends RegexRule {
             return true;
         }
 
-        return matcher.usePattern(LIBRARY_LINE).lookingAt();
+        if (matcher.usePattern(LIBRARY_LINE).lookingAt()) {
+            return true;
+        }
+
+        return matcher.usePattern(MOD_ID_LINE).lookingAt();
     }
 }

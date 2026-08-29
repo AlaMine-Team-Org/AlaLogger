@@ -116,19 +116,23 @@ jobs:
       - name: Test
         run: ./gradlew :common:test --no-daemon
 
-      - name: Build
-        run: ./gradlew :fabric:build --no-daemon
+      - name: Build both loaders
+        run: ./gradlew :fabric:build :neoforge:build --no-daemon
 
-      # The jar is what people download; checking it here beats finding out from
-      # a bug report that the metadata inside it was wrong.
-      - name: Verify the artifact
+      # The jars are what people download; checking them here beats finding out
+      # from a bug report that the metadata inside one was wrong. Each check also
+      # refuses a jar carrying the OTHER loader's metadata, which is how a mixed-up
+      # artifact would otherwise reach a store page under the wrong label.
+      - name: Verify both artifacts
         id: artifact
         env:
           VERSION: ${{ steps.version.outputs.version }}
           MC: ${{ steps.version.outputs.mc }}
         run: |
-          bash .github/scripts/verify-artifact.sh "$VERSION" .
-          echo "jar=fabric/build/libs/alalogger-fabric-$MC-$VERSION.jar" >> "$GITHUB_OUTPUT"
+          bash .github/scripts/verify-artifact.sh "$VERSION" . fabric
+          bash .github/scripts/verify-artifact.sh "$VERSION" . neoforge
+          echo "fabric_jar=fabric/build/libs/alalogger-fabric-$MC-$VERSION.jar" >> "$GITHUB_OUTPUT"
+          echo "neoforge_jar=neoforge/build/libs/alalogger-neoforge-$MC-$VERSION.jar" >> "$GITHUB_OUTPUT"
 
       # %(contents) is the whole message, verbatim. Do NOT rebuild it from
       # %(contents:subject) and %(contents:body): git treats the subject as the
@@ -155,7 +159,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.artifact.outputs.jar }}
+          files: |
+            ${{ steps.artifact.outputs.fabric_jar }}
+            ${{ steps.artifact.outputs.neoforge_jar }}
           body_path: NOTES.md
           name: Ala Logger ${{ steps.version.outputs.version }}
 
@@ -163,91 +169,49 @@ jobs:
       # that already uploaded. Modrinth rejects a duplicate version number, but
       # with an error that looks like any other failure; asking first turns that
       # into a clean skip.
-      - name: Is this version already on Modrinth
+      - name: Which Modrinth versions already exist
         id: modrinth_check
         if: startsWith(github.ref, 'refs/tags/') && env.SKIP_MODRINTH != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          versions=$(curl -sSf --retry 5 --retry-delay 15 --retry-all-errors \
-            --connect-timeout 20 --max-time 180 \
-            "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT/version" \
-            -H "User-Agent: AlaMine-Team-Org/AlaLogger-release/1.0")
-          exists=$(printf '%s' "$versions" | jq -r --arg v "$VERSION" \
-            'any(.[]; .version_number == $v)')
-          echo "exists=$exists" >> "$GITHUB_OUTPUT"
-          echo "Version $VERSION already on Modrinth: $exists"
+          versions=$(curl -sSf --retry 5 --retry-delay 15 --retry-all-errors             --connect-timeout 20 --max-time 180             "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT/version"             -H "User-Agent: AlaMine-Team-Org/AlaLogger-release/1.0")
+          for loader in fabric neoforge; do
+            exists=$(printf '%s' "$versions" | jq -r --arg v "$VERSION+$loader"               'any(.[]; .version_number == $v)')
+            echo "${loader}_exists=$exists" >> "$GITHUB_OUTPUT"
+            echo "Modrinth $VERSION+$loader already published: $exists"
+          done
 
-      # Modrinth and CurseForge are called directly rather than through an
-      # action: both want the changelog as markdown with its line breaks intact,
-      # and passing it through an action's inputs collapses them.
-      - name: Publish to Modrinth
-        if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_MODRINTH != 'true' && steps.modrinth_check.outputs.exists != 'true'
+      # Two Modrinth versions for one tag, not one version with two files.
+      #
+      # Modrinth attaches dependencies to a VERSION, not to a file. The Fabric
+      # build requires Fabric API and the NeoForge build does not, so a single
+      # version carrying both jars would either declare Fabric API for a file that
+      # does not need it or omit it from the one that does. Two versions keep each
+      # jar honest, at the cost of a "+loader" suffix in the version number.
+      - name: Publish Fabric to Modrinth
+        if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_MODRINTH != 'true' && steps.modrinth_check.outputs.fabric_exists != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           MC: ${{ steps.version.outputs.mc }}
-          JAR: ${{ steps.artifact.outputs.jar }}
-        run: |
-          # Fabric API is a hard dependency of this mod (fabric.mod.json requires
-          # it), and on Modrinth dependencies are declared per version, not per
-          # project. Leaving this empty ships a page that tells players nothing
-          # about what else they need. P7dR8mSH is Fabric API.
-          #
-          # featured stays false: a release job that features every version it
-          # publishes leaves the whole list featured, which is the same as none
-          # being featured. Promoting the current stable one is a decision, made
-          # by hand on the page. (Convention taken from AlaIndustrial, whose
-          # Modrinth project has been through moderation and 241 releases.)
-          DATA=$(jq -n \
-            --arg name "Ala Logger $VERSION" \
-            --arg version_number "$VERSION" \
-            --rawfile changelog NOTES.md \
-            --arg project_id "$MODRINTH_PROJECT" \
-            --arg game_version "$MC" \
-            '{
-              name: $name,
-              version_number: $version_number,
-              changelog: $changelog,
-              dependencies: [{project_id: "P7dR8mSH", dependency_type: "required"}],
-              game_versions: [$game_version],
-              version_type: "release",
-              loaders: ["fabric"],
-              featured: false,
-              status: "listed",
-              project_id: $project_id,
-              file_parts: ["file"],
-              primary_file: "file"
-            }')
+          JAR: ${{ steps.artifact.outputs.fabric_jar }}
+        run: bash .github/scripts/publish-modrinth.sh fabric
 
-          # curl --fail-with-body would hide the retry; do it by hand so the
-          # response body is printed on every attempt. Modrinth's errors say
-          # exactly what is wrong, and losing them costs a whole release cycle.
-          for attempt in 1 2 3 4 5; do
-            code=$(curl -sS --connect-timeout 20 --max-time 180 \
-              -o modrinth_resp.json -w '%{http_code}' -X POST \
-              https://api.modrinth.com/v2/version \
-              -H "Authorization: $MODRINTH_TOKEN" \
-              -H "User-Agent: AlaMine-Team-Org/AlaLogger-release/1.0" \
-              --form-string "data=$DATA" \
-              -F "file=@$JAR")
-            if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
-              echo "Modrinth upload OK (HTTP $code)"
-              exit 0
-            fi
-            echo "::warning::Modrinth attempt $attempt failed with HTTP $code; body:"
-            cat modrinth_resp.json || true
-            [ "$attempt" -lt 5 ] && sleep 15
-          done
-          echo "::error::Modrinth upload failed after 5 attempts (last HTTP $code)."
-          exit 1
+      - name: Publish NeoForge to Modrinth
+        if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_MODRINTH != 'true' && steps.modrinth_check.outputs.neoforge_exists != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          MC: ${{ steps.version.outputs.mc }}
+          JAR: ${{ steps.artifact.outputs.neoforge_jar }}
+        run: bash .github/scripts/publish-modrinth.sh neoforge
 
       # CurseForge identifies game versions, loaders and environments by numeric
-      # id, and rejects an upload that names none of them. The ids are pinned
-      # rather than matched by name: matching "26.2" also hits a stale legacy
-      # entry and is rejected as error 1009. Pinned ids can go stale in the other
-      # direction, though, so verify them against the API before uploading -
-      # a clear failure here beats an opaque one mid-upload.
-      - name: Check the CurseForge version ids
+      # id, and rejects an upload that names none of them. Minecraft and Fabric are
+      # pinned because matching "26.2" by name also hits a stale legacy entry and
+      # is rejected as error 1009; NeoForge is resolved by name because its id has
+      # moved before. Everything is verified against the API first: a clear failure
+      # here beats an opaque one mid-upload.
+      - name: Resolve the CurseForge version ids
         id: cf_ids
         if: startsWith(github.ref, 'refs/tags/') && env.SKIP_CURSEFORGE != 'true'
         env:
@@ -258,16 +222,13 @@ jobs:
           CLIENT_ID=9638   # Environment: Client
           SERVER_ID=9639   # Environment: Server
 
-          versions=$(curl -sSf --retry 5 --retry-delay 15 --retry-all-errors \
-            --connect-timeout 20 --max-time 180 \
-            "https://minecraft.curseforge.com/api/game/versions?token=$CURSEFORGE_TOKEN")
+          versions=$(curl -sSf --retry 5 --retry-delay 15 --retry-all-errors             --connect-timeout 20 --max-time 180             "https://minecraft.curseforge.com/api/game/versions?token=$CURSEFORGE_TOKEN")
 
           check() {
-            local id="$1" expected="$2"
-            local actual
+            local id="$1" expected="$2" actual
             actual=$(printf '%s' "$versions" | jq -r --argjson id "$id" '.[] | select(.id == $id) | .name' | head -1)
             if [ "$actual" != "$expected" ]; then
-              echo "::error::CurseForge id $id is '$actual', expected '$expected'. The ids in this workflow need updating; list them with: curl -s \"https://minecraft.curseforge.com/api/game/versions?token=\$TOKEN\" | jq '.[] | {id, name}'"
+              echo "::error::CurseForge id $id is '$actual', expected '$expected'. List them with: curl -s \"https://minecraft.curseforge.com/api/game/versions?token=\$TOKEN\" | jq '.[] | {id, name}'"
               return 1
             fi
             echo "  id $id = $actual"
@@ -278,47 +239,36 @@ jobs:
           check "$FABRIC_ID" "Fabric" || fail=1
           check "$CLIENT_ID" "Client" || fail=1
           check "$SERVER_ID" "Server" || fail=1
+
+          NEOFORGE_ID=$(printf '%s' "$versions" | jq -r 'map(select(.name == "NeoForge")) | .[0].id // empty')
+          if [ -z "$NEOFORGE_ID" ]; then
+            echo "::error::could not resolve the NeoForge modloader id from the versions API"
+            fail=1
+          else
+            echo "  NeoForge resolved to id $NEOFORGE_ID"
+          fi
+
           [ "$fail" -eq 0 ] || exit 1
 
-          echo "ids=[$MC_ID, $FABRIC_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
+          echo "fabric_ids=[$MC_ID, $FABRIC_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
+          echo "neoforge_ids=[$MC_ID, $NEOFORGE_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
 
-      - name: Publish to CurseForge
+      # Two uploads as SEPARATE steps, so a partial failure is unambiguous in the
+      # log and only the failed one has to be re-run.
+      - name: Publish Fabric to CurseForge
         if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_CURSEFORGE != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
-          JAR: ${{ steps.artifact.outputs.jar }}
-          GAME_VERSIONS: ${{ steps.cf_ids.outputs.ids }}
-        run: |
-          # The environment tags (Client/Server) became mandatory in 2026-07;
-          # without them the upload is rejected as errorCode 1021. Do not add a
-          # Java version here - CurseForge rejects that with errorCode 1009.
-          METADATA=$(jq -n \
-            --rawfile changelog NOTES.md \
-            --arg displayName "Ala Logger $VERSION [Fabric]" \
-            --argjson gameVersions "$GAME_VERSIONS" \
-            '{
-              changelog: $changelog,
-              changelogType: "markdown",
-              displayName: $displayName,
-              gameVersions: $gameVersions,
-              releaseType: "release"
-            }')
+          JAR: ${{ steps.artifact.outputs.fabric_jar }}
+          GAME_VERSIONS: ${{ steps.cf_ids.outputs.fabric_ids }}
+          LABEL: Fabric
+        run: bash .github/scripts/publish-curseforge.sh
 
-          for attempt in 1 2 3 4 5; do
-            code=$(curl -sS --connect-timeout 20 --max-time 180 \
-              -o cf_resp.json -w '%{http_code}' -X POST \
-              "https://minecraft.curseforge.com/api/projects/$CURSEFORGE_PROJECT/upload-file" \
-              -H "X-Api-Token: $CURSEFORGE_TOKEN" \
-              --form-string "metadata=$METADATA" \
-              -F "file=@$JAR")
-            if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
-              echo "CurseForge upload OK (HTTP $code)"
-              cat cf_resp.json
-              exit 0
-            fi
-            echo "::warning::CurseForge attempt $attempt failed with HTTP $code; body:"
-            cat cf_resp.json || true
-            [ "$attempt" -lt 5 ] && sleep 15
-          done
-          echo "::error::CurseForge upload failed after 5 attempts (last HTTP $code)."
-          exit 1
+      - name: Publish NeoForge to CurseForge
+        if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_CURSEFORGE != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          JAR: ${{ steps.artifact.outputs.neoforge_jar }}
+          GAME_VERSIONS: ${{ steps.cf_ids.outputs.neoforge_ids }}
+          LABEL: NeoForge
+        run: bash .github/scripts/publish-curseforge.sh

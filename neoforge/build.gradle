@@ -1,0 +1,54 @@
+plugins {
+    id 'multiloader-loader'
+    id 'net.neoforged.moddev'
+}
+
+neoForge {
+    version = neoforge_version
+
+    runs {
+        configureEach {
+            // Same run-configuration names as the Fabric side, so the IDE list
+            // reads as one project rather than two.
+            ideName = "NeoForge ${it.name.capitalize()} (${project.path})"
+        }
+        client {
+            client()
+            gameDirectory = this.mkdir(this.file('runs/client'))
+        }
+        server {
+            server()
+            gameDirectory = this.mkdir(this.file('runs/server'))
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+// The loader attribute other multi-loader builds use to tell the two variants
+// apart when they are published side by side. Harmless here and required the day
+// this module is consumed as a dependency rather than as a jar.
+//
+// findByName, not named(): this project publishes neither sources nor javadoc, so
+// those configurations simply do not exist, and asking for one by name fails the
+// whole build at configuration time. Copying the block verbatim from a project
+// that does publish them is exactly how that happened once.
+def loaderAttribute = Attribute.of('io.github.mcgradleconventions.loader', String)
+['apiElements', 'runtimeElements', 'sourcesElements', 'javadocElements'].each { variant ->
+    configurations.findByName(variant)?.attributes {
+        attribute(loaderAttribute, 'neoforge')
+    }
+}
+sourceSets.configureEach {
+    [it.compileClasspathConfigurationName, it.runtimeClasspathConfigurationName, it.getTaskName(null, 'jarJar')].each { variant ->
+        configurations.named(variant) {
+            attributes {
+                attribute(loaderAttribute, 'neoforge')
+            }
+        }
+    }
+}

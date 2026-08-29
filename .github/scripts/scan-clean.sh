@@ -99,6 +99,7 @@ scan "L1 Cyrillic (the public repository is English-only)" "-P" "$PATTERN_CYRILL
 
 scan "L2 tooling named in a published file" "-iE" "$PATTERN_TRACES"
 scan "L2 bare acronym (read the line before deciding)" "-E" "$PATTERN_BARE_ACRONYM"
+scan "L2 another project named in a published file" "-iE" "$PATTERN_COMPETITORS"
 
 mapfile -t L3_FILES < <(printf '%s\n' "${FILES[@]}" | grep -vE "$PATTERN_L3_EXEMPT" || true)
 scan "L3 credential in a published file" "-E" "$PATTERN_CREDENTIALS" L3_FILES

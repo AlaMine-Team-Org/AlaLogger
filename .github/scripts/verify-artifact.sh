@@ -6,20 +6,26 @@
 # broken artifact is found while it is still cheap to fix - before the tag, not
 # after three platforms have a copy of it.
 #
-# Usage: verify-artifact.sh <version> [tree]
-#        tree defaults to the current directory; the jar is expected at
-#        <tree>/fabric/build/libs/alalogger-fabric-<mc>-<version>.jar
+# Usage: verify-artifact.sh <version> [tree] [loader]
+#        tree defaults to the current directory; loader to "fabric".
+#        The jar is expected at <tree>/<loader>/build/libs/alalogger-<loader>-<mc>-<version>.jar
 # Exit:  0 good, 1 something is wrong, 2 unusable input.
 
 set -uo pipefail
 
 VERSION="${1:-}"
 TREE="${2:-.}"
+LOADER="${3:-fabric}"
 
 if [ -z "$VERSION" ]; then
-    echo "usage: $(basename "$0") <version> [tree]" >&2
+    echo "usage: $(basename "$0") <version> [tree] [loader]" >&2
     exit 2
 fi
+
+case "$LOADER" in
+    fabric|neoforge) ;;
+    *) echo "verify: unknown loader '$LOADER' (fabric or neoforge)" >&2; exit 2 ;;
+esac
 
 cd "$TREE" || { echo "verify: cannot enter $TREE" >&2; exit 2; }
 
@@ -28,7 +34,7 @@ command -v unzip >/dev/null 2>&1 || { echo "verify: unzip is not on PATH" >&2; e
 MC="$(grep -E '^minecraft_version=' gradle.properties | head -1 | cut -d= -f2- | tr -d '\r[:space:]')"
 [ -n "$MC" ] || { echo "verify: no minecraft_version in gradle.properties" >&2; exit 2; }
 
-JAR="fabric/build/libs/alalogger-fabric-$MC-$VERSION.jar"
+JAR="$LOADER/build/libs/alalogger-$LOADER-$MC-$VERSION.jar"
 
 FAIL=0
 bad() { echo "FAIL - $1"; FAIL=1; }
@@ -36,8 +42,8 @@ ok()  { echo "  ok   $1"; }
 
 if [ ! -f "$JAR" ]; then
     echo "FAIL - the jar is missing: $JAR" >&2
-    echo "       what is in fabric/build/libs:" >&2
-    ls -la fabric/build/libs/ >&2 2>/dev/null || echo "       (no such directory)" >&2
+    echo "       what is in $LOADER/build/libs:" >&2
+    ls -la "$LOADER/build/libs/" >&2 2>/dev/null || echo "       (no such directory)" >&2
     exit 1
 fi
 
@@ -47,19 +53,39 @@ if [ "$SIZE" -lt 10000 ]; then
 else
     ok "$JAR ($((SIZE / 1024)) KiB)"
 fi
+# The metadata file differs per loader, and checking the RIGHT one is the point:
+# a Fabric jar carrying neoforge.mods.toml, or the reverse, means the wrong
+# artifact was picked up somewhere - and the file name alone would not show it.
+if [ "$LOADER" = "fabric" ]; then
+    META_NAME="fabric.mod.json"
+    WRONG_NAME="neoforge.mods.toml"
+else
+    META_NAME="META-INF/neoforge.mods.toml"
+    WRONG_NAME="fabric.mod.json"
+fi
 
-META="$(unzip -p "$JAR" fabric.mod.json 2>/dev/null || true)"
+META="$(unzip -p "$JAR" "$META_NAME" 2>/dev/null || true)"
+
+if unzip -l "$JAR" 2>/dev/null | grep -q "$WRONG_NAME"; then
+    bad "the jar carries $WRONG_NAME - this is not a $LOADER artifact"
+fi
+
 if [ -z "$META" ]; then
-    bad "fabric.mod.json is not in the jar"
+    bad "$META_NAME is not in the jar"
 else
     # The version inside the metadata is what the game and the launchers read.
     # A jar whose file name says one version and whose metadata says another is
     # the kind of thing nobody notices until a bug report quotes the wrong one.
-    if printf '%s' "$META" | grep -q "\"version\"[[:space:]]*:[[:space:]]*\"$VERSION\""; then
-        ok "fabric.mod.json carries version $VERSION"
+    #
+    # One pattern for both formats. JSON writes  "version": "x"  and TOML writes
+    # version = "x", so the key may be followed by a closing quote before the
+    # separator - which the first version of this pattern missed, reporting a
+    # perfectly good Fabric jar as broken.
+    if printf '%s' "$META" | grep -qE "version\"?[[:space:]]*[:=][[:space:]]*\"$VERSION\""; then
+        ok "$META_NAME carries version $VERSION"
     else
-        bad "fabric.mod.json does not carry version $VERSION"
-        printf '%s\n' "$META" | grep -n '"version"' | sed 's/^/       /'
+        bad "$META_NAME does not carry version $VERSION"
+        printf '%s\n' "$META" | grep -n 'version' | sed 's/^/       /'
     fi
 
     # Mojibake check. gradle.properties is read as ISO-8859-1, so a non-ASCII

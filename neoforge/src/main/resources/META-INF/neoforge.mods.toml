@@ -1,0 +1,34 @@
+modLoader = "javafml"
+loaderVersion = "${neoforge_loader_version_range}"
+license = "${license}"
+
+[[mods]]
+modId = "${mod_id}"
+version = "${version}"
+displayName = "${mod_name}"
+authors = "${mod_author}"
+description = '''${description}'''
+
+# The icon in the NeoForge mod list. Root-relative path inside the jar, the same
+# asset the Fabric side declares in fabric.mod.json.
+#
+# iconFile/iconBlur, NOT the pre-26.2 logoFile/logoBlur: the mod-list rewrite split
+# the two slots, and logoFile now feeds a WIDE BANNER with iconFile as the separate
+# square slot. A square asset left under the old key is stretched across the banner
+# and the loader warns about the deprecated key on every launch.
+iconFile = "assets/alalogger/icon-128.png"
+iconBlur = true
+
+[[dependencies.${mod_id}]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforge_version},)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"

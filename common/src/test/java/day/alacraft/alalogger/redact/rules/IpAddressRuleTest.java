@@ -1,6 +1,7 @@
 package day.alacraft.alalogger.redact.rules;
 
 import day.alacraft.alalogger.redact.RuleOutcome;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -60,6 +61,36 @@ class IpAddressRuleTest {
         String log = "Graphics card #0 versionInfo: DriverVersion=31.0.15.3623";
 
         assertEquals(log, redact(log));
+    }
+
+    @Test
+    @DisplayName("a NeoForge startup mod list keeps its loader version")
+    void keepsNeoForgeModListVersion() {
+        // Found by publishing a real log from a NeoForge client: the header block
+        // came back with the loader version rewritten as an address. Four parts,
+        // all below 256, no suffix - and neither of the other two mod-list guards
+        // matches this shape, because NeoForge prints "Name Version (modid)"
+        // rather than Fabric's "modid: Name Version".
+        //
+        // The line that mattered most: it is where anyone reading a shared log
+        // finds out which loader and which build produced it.
+        String log = String.join("\n",
+                "\t\tAla Logger 0.1.0 (alalogger)",
+                "\t\tMinecraft 26.2 (minecraft)",
+                "\t\tNeoForge 26.2.0.67 (neoforge)");
+
+        assertEquals(log, redact(log));
+    }
+
+    @Test
+    @DisplayName("but an address still gets masked on a line that merely ends in brackets")
+    void masksAnAddressOnALineThatOnlyLooksLikeAModRow() {
+        // The guard above is bounded on purpose. A log line ending in a
+        // parenthetical is common; one that ends in a lowercase mod id preceded by
+        // a version is not. This is the line that proves the bound holds.
+        String log = "  Player123 connected from 203.0.113.7 (first join)";
+
+        assertEquals("  Player123 connected from ***.***.***.*** (first join)", redact(log));
     }
 
     @Test

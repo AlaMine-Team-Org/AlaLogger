@@ -35,10 +35,15 @@ jobs:
       - name: Unit tests
         run: ./gradlew :common:test --no-daemon --stacktrace
 
-      - name: Build
-        run: ./gradlew :fabric:build --no-daemon --stacktrace
+      # Both loaders, always, in one job. The shared code is compiled separately
+      # by each of them, so a change that compiles under one can fail under the
+      # other - and finding that out at release time means the release is already
+      # half-published.
+      - name: Build both loaders
+        run: ./gradlew :fabric:build :neoforge:build --no-daemon --stacktrace
 
-      - name: Verify the artifact
+      - name: Verify both artifacts
         run: |
           VERSION=$(grep '^version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
-          bash .github/scripts/verify-artifact.sh "$VERSION" .
+          bash .github/scripts/verify-artifact.sh "$VERSION" . fabric
+          bash .github/scripts/verify-artifact.sh "$VERSION" . neoforge

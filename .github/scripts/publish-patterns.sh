@@ -71,6 +71,19 @@ PATTERN_BAD_FILENAMES='(^|/)\.env($|\.)|\.pem$|\.key$|(^|/)id_rsa|_secret|creden
 # is a note; the same note in published source is an unfinished edge.
 PATTERN_UNFINISHED='\b(TODO|FIXME|XXX|HACK)\b'
 
+# Other people's projects.
+#
+# This mod is an independent tool built for alacraft.day, and nothing it ships
+# should read as a comparison to, or a debt owed to, somebody else's service.
+# Naming a competitor in a code comment is how it ends up on a store page: the
+# comment gets quoted into a README, the README into a description, and the
+# description is read by every player who opens the listing.
+#
+# The rule is about what we ship, not about what we know: internal research under
+# docs/research/ studies other tools by name on purpose, and none of it is
+# published - the allowlist in sync_paths.txt does not carry it.
+PATTERN_COMPETITORS='mclo\.gs|mclogs|aternos|crash.assistant|paste\.gg|hastebin|pastebin'
+
 # Internal paths. The allowlist in sync_paths.txt cannot carry these across, so a
 # hit means somebody added the file to the mirror by hand.
 PATTERN_DENIED_PATHS='^(\.c[l]aude|\.agents|research)/|^docs/(PLAN|DEV-RUN)\.md$|^docs/(research|publishing|tools)/|(^|/)C[L]AUDE\.md$'
