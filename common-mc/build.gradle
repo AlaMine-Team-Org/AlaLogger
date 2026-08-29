@@ -1,0 +1,34 @@
+plugins {
+    id 'multiloader-common'
+    id 'net.neoforged.moddev'
+}
+
+// ModDevGradle is applied for ONE reason: `neoFormVersion` gives this module a
+// compile-time Minecraft classpath in Mojang mappings without pulling in any
+// loader. That is what lets the Brigadier command tree live here once and be
+// recompiled into the Fabric jar, the NeoForge jar and every later one, instead
+// of being copy-pasted per loader.
+//
+// Mojang mappings are not a preference: Yarn is not published for the 26.x
+// schema at all, and since 26.1 the game ships unobfuscated anyway.
+neoForge {
+    neoFormVersion = neo_form_version
+}
+
+dependencies {
+    compileOnly(project(':common'))
+    compileOnly(libs.slf4j.api)
+}
+
+// Same source-sharing contract as :common — the loader modules compile these
+// sources themselves.
+configurations {
+    commonJava {
+        canBeResolved = false
+        canBeConsumed = true
+    }
+}
+
+artifacts {
+    commonJava sourceSets.main.java.sourceDirectories.singleFile
+}

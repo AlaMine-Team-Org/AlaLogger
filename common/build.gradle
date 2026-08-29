@@ -1,0 +1,48 @@
+plugins {
+    id 'multiloader-common'
+}
+
+// No Minecraft anywhere on this module's classpath, and that is the design:
+// uploading a log is HTTP, regex and file IO, none of which needs the game. It
+// keeps the interesting logic — redaction above all — testable with plain JUnit
+// in milliseconds, instead of behind a game-test harness.
+dependencies {
+    // Both are provided at runtime by every platform we target (Minecraft
+    // bundles Gson, all loaders bundle SLF4J), so they are compile-only here and
+    // never bundled into the jar.
+    compileOnly(libs.gson)
+    compileOnly(libs.slf4j.api)
+
+    testImplementation(platform(libs.junit.bom))
+    testImplementation('org.junit.jupiter:junit-jupiter')
+    testRuntimeOnly('org.junit.platform:junit-platform-launcher')
+    testImplementation(libs.gson)
+    testImplementation(libs.slf4j.api)
+    testRuntimeOnly(libs.slf4j.nop)
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events 'failed'
+        exceptionFormat = 'full'
+    }
+}
+
+// Hand the SOURCE directories to the loader modules rather than a jar — see
+// build-logic/src/main/groovy/multiloader-loader.gradle for why.
+configurations {
+    commonJava {
+        canBeResolved = false
+        canBeConsumed = true
+    }
+    commonResources {
+        canBeResolved = false
+        canBeConsumed = true
+    }
+}
+
+artifacts {
+    commonJava sourceSets.main.java.sourceDirectories.singleFile
+    commonResources sourceSets.main.resources.sourceDirectories.singleFile
+}

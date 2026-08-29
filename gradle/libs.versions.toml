@@ -1,0 +1,28 @@
+# =============================================================================
+# Build-time library and plugin versions.
+#
+# What lives here: versions used only to resolve a dependency or a plugin.
+# What stays in gradle.properties: anything the mod metadata needs, because
+# processResources expands those into fabric.mod.json and a version catalog is
+# not readable from that expansion.
+# =============================================================================
+
+[versions]
+fabric-loom = "1.17.12"
+neoforge-moddev = "2.0.141"
+
+# Bundled by Minecraft 26.2 — pinned to the same version so the unit tests,
+# which run without the game, cannot disagree with what ships at runtime.
+gson = "2.14.0"
+slf4j = "2.0.9"
+junit = "5.10.2"
+
+[libraries]
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+
+[plugins]
+fabric-loom = { id = "net.fabricmc.fabric-loom", version.ref = "fabric-loom" }
+neoforge-moddev = { id = "net.neoforged.moddev", version.ref = "neoforge-moddev" }

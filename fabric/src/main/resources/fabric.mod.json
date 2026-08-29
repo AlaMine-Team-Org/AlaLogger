@@ -1,0 +1,34 @@
+{
+	"schemaVersion": 1,
+	"id": "${mod_id}",
+	"version": "${version}",
+	"name": "${mod_name}",
+	"description": "${description}",
+	"authors": [
+		"${mod_author}"
+	],
+	"contact": {
+		"homepage": "https://alacraft.day/en/logs",
+		"sources": "https://github.com/AlaMine-Team-Org/AlaLogger",
+		"issues": "https://github.com/AlaMine-Team-Org/AlaLogger/issues"
+	},
+	"license": "${license}",
+	"icon": {
+		"16": "assets/alalogger/icon-16.png",
+		"32": "assets/alalogger/icon-32.png",
+		"128": "assets/alalogger/icon-128.png",
+		"512": "assets/alalogger/icon-512.png"
+	},
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"day.alacraft.alalogger.fabric.AlaLoggerFabric"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=${fabric_loader_version}",
+		"minecraft": "~${minecraft_version}",
+		"java": ">=${java_version}",
+		"fabric-api": "*"
+	}
+}

@@ -1,0 +1,14 @@
+# Normalise line endings.
+#
+# Not cosmetic: processResources copies resources into the jar byte for byte, so
+# a file checked out with CRLF on Windows and LF on Linux produces two different
+# jars from the same commit. AlaIndustrial hit exactly this and now gates it with
+# a validator — cheaper to prevent here.
+* text=auto eol=lf
+
+# The wrapper script must stay LF or it will not run on Linux and macOS.
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+
+*.jar binary
+*.png binary

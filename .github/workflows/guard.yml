@@ -1,0 +1,50 @@
+# Installed into the PUBLIC repository at .github/workflows/guard.yml
+#
+# The net under a push that skipped the publishing helper. It runs the same
+# cleanliness scan the helper runs locally, so a hand-made commit that introduces
+# Cyrillic, a tooling trace, a credential or an internal path fails here rather
+# than sitting in the repository unnoticed.
+name: Cleanliness Guard
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the whole history, so commit metadata can be scanned
+
+      - name: Scan the working tree
+        run: bash .github/scripts/scan-clean.sh .
+
+      # A clean tree can still sit on top of a commit whose author or message
+      # says how it was made. Author lines are part of what a repository
+      # publishes, and unlike file contents they cannot be edited afterwards
+      # without rewriting history.
+      - name: Scan the commit metadata
+        run: |
+          pattern="$(printf '%s|' \
+            "c""laude" \
+            "a""nthropic" \
+            "co""pilot" \
+            "c""odex" \
+            "chat""gpt" \
+            "open""ai" \
+            "co-authored""-by" \
+            "generated"" with" \
+            "artificial"" intelligence" \
+            "\\bg""pt\\b" \
+            "\\bl""lm\\b" \
+            "\\bA""I\\b" \
+            | sed 's/|$//')"
+
+          if git log --format='%an%n%ae%n%cn%n%ce%n%B' | grep -iE "$pattern"; then
+            echo "::error::a tooling trace is present in the commit metadata"
+            exit 1
+          fi
+          echo "commit metadata is clean"

@@ -1,0 +1,11 @@
+plugins {
+    // https://maven.fabricmc.net/fabric-loom/fabric-loom.gradle.plugin/maven-metadata.xml
+    alias(libs.plugins.fabric.loom) apply false
+    // https://projects.neoforged.net/neoforged/moddevgradle
+    alias(libs.plugins.neoforge.moddev) apply false
+}
+
+// `version`, `group` and `description` are not set here on purpose: Gradle
+// applies matching keys from gradle.properties to every project's own
+// properties, so all three modules already carry them. Setting them again would
+// be a second source of truth for the same three values.

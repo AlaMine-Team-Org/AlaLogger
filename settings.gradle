@@ -1,0 +1,47 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        // ModDevGradle — used by :common-mc for the NeoForm-provided Minecraft
+        // classpath, and later by the NeoForge module itself.
+        maven {
+            name = 'NeoForged'
+            url = uri('https://maven.neoforged.net/releases')
+        }
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = 'Fabric'
+                    url = uri('https://maven.fabricmc.net/')
+                }
+            }
+            filter {
+                includeGroupAndSubgroups('net.fabricmc')
+            }
+        }
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'alalogger'
+
+includeBuild('build-logic')
+
+// Three modules, mirroring how the code is allowed to depend on Minecraft:
+//
+//   common     pure Java — HTTP, redaction, file discovery, config, history.
+//              No Minecraft on the classpath at all, so it is testable with
+//              plain JUnit and reusable by anything (a panel plugin, a CLI).
+//   common-mc  the loader-neutral Minecraft layer: the Brigadier command tree
+//              and chat components. Compiled against NeoForm, so one command
+//              tree serves every loader instead of one copy per loader.
+//   fabric     the entrypoint and the loader-specific hooks. Deliberately thin.
+//
+// NeoForge, Paper/Folia and Velocity modules slot in beside `fabric` without
+// touching the two shared ones — that is the whole point of the split.
+include('common')
+include('common-mc')
+include('fabric')

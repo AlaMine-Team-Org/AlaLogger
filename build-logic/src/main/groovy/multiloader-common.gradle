@@ -1,0 +1,136 @@
+plugins {
+    id 'java-library'
+}
+
+base {
+    archivesName = "${mod_id}-${project.name}-${minecraft_version}"
+}
+
+repositories {
+    mavenCentral()
+    // Loom and ModDevGradle add their own repositories to the modules that
+    // apply them; this is for the ordinary libraries every module shares.
+    maven {
+        name = 'NeoForged'
+        url = uri('https://maven.neoforged.net/releases')
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Fabric'
+                url = uri('https://maven.fabricmc.net/')
+            }
+        }
+        filter {
+            includeGroupAndSubgroups('net.fabricmc')
+        }
+    }
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(java_version)
+}
+
+// Name the deprecated symbols instead of counting them. Mojang and the loaders
+// mark a symbol @Deprecated a release or two before removing it, so this is free
+// advance notice of the next migration — the alternative is finding out at
+// runtime, after the version bump.
+//
+// Deliberately not -Werror: vanilla deprecates on Mojang's schedule, not ours,
+// and a build going red because of someone else's release stops work at a moment
+// we did not choose.
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-Xlint:deprecation'
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(Jar).configureEach {
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${mod_id}" }
+    }
+    from(rootProject.file('NOTICE')) {
+        rename { "${it}_${mod_id}" }
+    }
+}
+
+jar {
+    manifest {
+        attributes([
+                'Specification-Title'   : mod_name,
+                'Specification-Vendor'  : mod_author,
+                'Specification-Version' : project.jar.archiveVersion,
+                'Implementation-Title'  : project.name,
+                'Implementation-Version': project.jar.archiveVersion,
+                'Implementation-Vendor' : mod_author,
+                'Built-On-Minecraft'    : minecraft_version
+        ])
+    }
+}
+
+// Build stamp: short git hash + commit time, expanded into alalogger.build.json
+// so the mod can report exactly which build uploaded a log. That traceability is
+// the point — when a log arrives malformed, "which version produced it" has to
+// be answerable from the log itself.
+//
+// The COMMIT time, never `new Date()`: both values feed processResources inputs,
+// so a wall-clock value would make the task out of date every minute and drag
+// the whole jar chain with it. While HEAD has not moved, the stamp is stable.
+String gitHash = 'dev'
+String commitTime = ''
+try {
+    def git = providers.exec {
+        commandLine 'git', 'log', '-1', '--date=format:%Y-%m-%dT%H:%M', '--format=%h%n%cd'
+        ignoreExitValue = true
+    }
+    if (git.result.get().exitValue == 0) {
+        List<String> stamp = git.standardOutput.asText.get().trim().readLines()
+        if (stamp.size() >= 1 && !stamp[0].trim().isEmpty()) {
+            gitHash = stamp[0].trim()
+        }
+        if (stamp.size() >= 2) {
+            commitTime = stamp[1].trim()
+        }
+    }
+} catch (Exception e) {
+    // No git on PATH, or a clean export without .git. 'dev' is the documented
+    // fallback BuildInfo expects; say so, because in a release build a 'dev'
+    // stamp means the artifact cannot be traced back to a commit.
+    logger.warn("[{}] could not read the git stamp ({}: {}) — this build will be marked 'dev'.",
+            mod_id, e.getClass().getSimpleName(), e.message)
+}
+String buildTime = System.getenv('ALA_BUILD_TIME')?.trim() ?: (commitTime ?: 'dev')
+
+processResources {
+    var expandProps = [
+            'version'                : version,
+            'githash'                : gitHash,
+            'buildtime'              : buildTime,
+            'group'                  : project.group,
+            'minecraft_version'      : minecraft_version,
+            'minecraft_version_range': minecraft_version_range,
+            'fabric_version'         : fabric_version,
+            'fabric_loader_version'  : fabric_loader_version,
+            'mod_name'               : mod_name,
+            'mod_author'             : mod_author,
+            'mod_id'                 : mod_id,
+            'license'                : license,
+            'description'            : project.description,
+            'java_version'           : java_version
+    ]
+
+    // A literal newline inside a JSON string is invalid, so escape it for the
+    // JSON targets only — the description is the one value long enough to have any.
+    var jsonExpandProps = expandProps.collectEntries { key, value ->
+        [(key): value instanceof String ? value.replace('\n', '\\\\n') : value]
+    }
+
+    filesMatching(['pack.mcmeta', 'fabric.mod.json', "${mod_id}.build.json".toString()]) {
+        expand jsonExpandProps
+    }
+
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand expandProps
+    }
+
+    inputs.properties(expandProps)
+}

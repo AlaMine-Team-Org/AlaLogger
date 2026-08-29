@@ -1,0 +1,39 @@
+plugins {
+    id 'multiloader-common'
+}
+
+// The shared modules are consumed as SOURCE, not as a jar.
+//
+// Each loader recompiles common/ and common-mc/ with its own toolchain and
+// against its own Minecraft classpath, which is what lets one body of code serve
+// Fabric, NeoForge and the Bukkit family without shading anything or publishing
+// an intermediate artifact. It is what keeps a per-platform adapter down to a
+// few dozen lines instead of a parallel copy of the mod.
+configurations {
+    commonJava {
+        canBeResolved = true
+    }
+    commonResources {
+        canBeResolved = true
+    }
+}
+
+dependencies {
+    // For IDE resolution only — the actual compilation reads the source dirs below.
+    compileOnly(project(':common'))
+    compileOnly(project(':common-mc'))
+
+    commonJava(project(path: ':common', configuration: 'commonJava'))
+    commonJava(project(path: ':common-mc', configuration: 'commonJava'))
+    commonResources(project(path: ':common', configuration: 'commonResources'))
+}
+
+tasks.named('compileJava', JavaCompile) {
+    dependsOn(configurations.commonJava)
+    source(configurations.commonJava)
+}
+
+processResources {
+    dependsOn(configurations.commonResources)
+    from(configurations.commonResources)
+}
