@@ -68,6 +68,42 @@ class LogFilesTest {
         assertEquals("latest.log", files().list().getFirst().name());
     }
 
+    @Test
+    @DisplayName("and when debug.log is newer, which is the normal case in a running game, latest.log is still the one meant")
+    void uploadsTheCurrentLogEvenWhenDebugIsNewer() throws IOException {
+        // The tie above is the shutdown case: the game flushes both files in one
+        // operation, so their timestamps match. While the game is RUNNING they do
+        // not. debug.log receives every line latest.log does plus the DEBUG-level
+        // ones, so it is written more often and is almost always the newer file -
+        // which made "the newest log" reach for it on every real upload.
+        //
+        // Caught in a live client, not by this suite: the mod announced
+        // latest.log on startup and uploaded a 620 KB debug.log instead of a
+        // 27 KB latest.log. The tie-break above was real but only covered the
+        // moment nobody uploads anything.
+        Instant earlier = Instant.parse("2026-08-29T10:15:59Z");
+        write(logs, "latest.log", earlier);
+        write(logs, "debug.log", earlier.plusSeconds(3));
+
+        assertEquals("debug.log", files().latest(LogFileType.LOG).orElseThrow().name(),
+                "newest-first still answers what it was asked");
+        assertEquals("latest.log", files().current().orElseThrow().name(),
+                "but the default upload asks a different question");
+    }
+
+    @Test
+    @DisplayName("without latest.log, the default upload falls back to the newest log")
+    void fallsBackToTheNewestLogWhenThereIsNoCurrentOne() throws IOException {
+        // A server started with a custom log4j configuration may never write a
+        // file by that name. Refusing to upload anything would be worse than
+        // uploading the newest thing there is.
+        Instant now = Instant.parse("2026-08-29T10:15:59Z");
+        write(logs, "debug.log", now.minusSeconds(60));
+        write(logs, "server-2026-08-29.log", now);
+
+        assertEquals("server-2026-08-29.log", files().current().orElseThrow().name());
+    }
+
     private static Optional<LogFile> named(List<LogFile> files, String name) {
         return files.stream().filter(file -> file.name().equals(name)).findFirst();
     }

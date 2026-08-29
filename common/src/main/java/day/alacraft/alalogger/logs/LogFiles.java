@@ -274,6 +274,41 @@ public final class LogFiles {
     }
 
     /**
+     * The log {@code /alalogger} uploads when given no argument: {@code latest.log}
+     * by name, falling back to the newest ordinary log only if it is absent.
+     *
+     * <p>Asking for "the newest log" instead was wrong, and quietly so. Minecraft
+     * keeps {@code debug.log} alongside {@code latest.log}, and the debug file
+     * receives every line the other one does plus the DEBUG-level ones — so in a
+     * running game it is almost always the more recently written of the two, and
+     * "newest" picks it every time.
+     *
+     * <p>{@link #NEWEST_FIRST} does break that tie in favour of the current log,
+     * but only when the timestamps are exactly equal, which happens mainly when
+     * the game shuts down and flushes both in one operation. That is why the
+     * defect survived a fix and a live test: at rest the two files agree, and it
+     * is under load — precisely when somebody needs to share a log — that they do
+     * not.
+     *
+     * <p>The cost was not cosmetic. In a plain dev session {@code debug.log} was
+     * 620 KB against 27 KB, so the upload carried twenty times the data, twenty
+     * times the redaction work, and hit the size limit on a file nobody asked
+     * for; the mod meanwhile announced {@code latest.log} on startup and said so
+     * on its own store page.
+     */
+    public Optional<LogFile> current() {
+        List<LogFile> files = list();
+
+        return files.stream()
+                .filter(file -> file.type() == LogFileType.LOG)
+                .filter(file -> CURRENT_LOG.equalsIgnoreCase(file.name()))
+                .findFirst()
+                .or(() -> files.stream()
+                        .filter(file -> file.type() == LogFileType.LOG)
+                        .findFirst());
+    }
+
+    /**
      * The most recently written file of one of the given types.
      *
      * <p>This is what makes {@code /alog crash} possible without an argument.

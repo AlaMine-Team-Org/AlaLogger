@@ -265,6 +265,16 @@ public final class UploadService {
         return CompletableFuture.supplyAsync(() -> files.find(name), WORKER);
     }
 
+    /**
+     * The log {@code /alalogger} means by default, off the game thread.
+     *
+     * <p>Not the same question as {@link #latest}: see {@link LogFiles#current()}
+     * for why "the newest log" reaches for {@code debug.log} instead.
+     */
+    public CompletableFuture<Optional<LogFile>> current() {
+        return CompletableFuture.supplyAsync(files::current, WORKER);
+    }
+
     /** The newest file of any of these types, off the game thread. */
     public CompletableFuture<Optional<LogFile>> latest(day.alacraft.alalogger.logs.LogFileType... types) {
         return CompletableFuture.supplyAsync(

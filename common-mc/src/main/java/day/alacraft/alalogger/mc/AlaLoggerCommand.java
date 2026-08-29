@@ -109,7 +109,7 @@ public final class AlaLoggerCommand {
     // ------------------------------------------------------------- uploading
 
     private static int uploadCurrent(CommandContext<CommandSourceStack> ctx, UploadService service) {
-        return resolveThenUpload(ctx, service, service.latest(LogFileType.LOG), null);
+        return resolveThenUpload(ctx, service, service.current(), null);
     }
 
     private static int uploadNamed(CommandContext<CommandSourceStack> ctx, UploadService service, String name) {
