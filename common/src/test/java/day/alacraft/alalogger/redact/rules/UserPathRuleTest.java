@@ -44,7 +44,7 @@ class UserPathRuleTest {
     void masksLinuxAndMacHomeDirectories() {
         assertEquals(
                 "reading /home/********/server/mods and /Users/********/Library/caches",
-                redact("reading /home/artem/server/mods and /Users/artem/Library/caches"));
+                redact("reading /home/steve/server/mods and /Users/steve/Library/caches"));
     }
 
     @Test
@@ -52,15 +52,15 @@ class UserPathRuleTest {
         // The structural hole in the upstream patterns: every one of them needed a
         // separator after the name, and the Environment Variables block of an
         // hs_err file is made almost entirely of values that end at the name.
-        assertEquals("HOME=/home/********", redact("HOME=/home/artem"));
+        assertEquals("HOME=/home/********", redact("HOME=/home/steve"));
     }
 
     @Test
     void masksTheEnvironmentVariablesBlock() {
         String log = String.join("\n",
                 "USERNAME=Steve",
-                "USER=artem",
-                "LOGNAME=artem",
+                "USER=steve",
+                "LOGNAME=steve",
                 "HOSTNAME=gaming-pc",
                 "COMPUTERNAME=DESKTOP-4F2K1",
                 "USERDOMAIN=WORKGROUP",
@@ -82,7 +82,7 @@ class UserPathRuleTest {
     void masksSystemPropertyDumps() {
         assertEquals(
                 "user.name=********\nuser.home=********",
-                redact("user.name = Steve\nuser.home = C:\\Users\\User"));
+                redact("user.name = Steve\nuser.home = C:\\Users\\Steve"));
     }
 
     @Test
@@ -107,7 +107,7 @@ class UserPathRuleTest {
     void keepsThePlayersMinecraftName() {
         // Deliberate policy: the nickname is public anyway, and a log with it
         // blanked out is much harder to read.
-        String log = "ServerPlayer['Ma3auka'/230, l='ServerLevel[world]', x=-50.98]";
+        String log = "ServerPlayer['Alex'/230, l='ServerLevel[world]', x=-50.98]";
 
         assertEquals(log, redact(log));
     }

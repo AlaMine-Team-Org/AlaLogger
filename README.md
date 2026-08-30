@@ -44,14 +44,15 @@ live game.
 Paper/Folia and Velocity follow. The shared code is split so that adding one is a
 thin adapter rather than a rewrite: everything a player interacts with lives in
 `common` and `common-mc`, compiled from the same source by each loader, and a
-loader module is an entrypoint plus a handful of lines. The two entrypoints that
-exist differ by four calls.
+loader module is an entrypoint plus a handful of lines. The startup sequence is
+shared too, so the two entrypoints that exist are about fifty lines each — and
+`checkLoaderParity` fails the build if they ever stop matching.
 
 ## Layout
 
 | Module | Contains | Minecraft on the classpath |
 |---|---|---|
-| `common` | HTTP, redaction, file discovery, config, history, translations | no |
+| `common` | HTTP, redaction, file discovery, config, history, translations, the startup sequence | no |
 | `common-mc` | the Brigadier command tree and chat components | yes, via NeoForm |
 | `fabric` | entrypoint and loader hooks | yes |
 | `neoforge` | entrypoint and loader hooks | yes |

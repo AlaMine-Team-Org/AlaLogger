@@ -9,10 +9,8 @@ import day.alacraft.alalogger.logs.LogFiles;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -176,35 +174,15 @@ public final class CrashWatch {
         trimmed.forEach(array::add);
         json.add("seen", array);
 
-        // Composed beside the marker and moved over it, the way the upload
-        // history is written. A process killed halfway through a plain write
-        // leaves a truncated file, which readMarker() can only treat as a first
-        // run — and a first run after a bad night is a week of old crash reports
-        // offered a second time. The move is the one step that cannot be seen
-        // half-finished.
-        Path temporary = markerFile.resolveSibling(markerFile.getFileName() + ".tmp");
-
+        // Written through a temporary file and moved over the old one. A process
+        // killed halfway through a plain write leaves a truncated marker, which
+        // readMarker() can only treat as a first run — and a first run after a
+        // bad night is a week of old crash reports offered a second time.
         try {
-            Path parent = markerFile.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-
-            Files.writeString(temporary, json.toString(), StandardCharsets.UTF_8);
-
-            try {
-                Files.move(temporary, markerFile,
-                        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                // Some network and container filesystems refuse an atomic rename.
-                // A plain replace still beats writing in place: the content was
-                // complete before the move started.
-                Files.move(temporary, markerFile, StandardCopyOption.REPLACE_EXISTING);
-            }
+            AtomicFiles.write(markerFile, json.toString());
         } catch (IOException e) {
             // Not fatal: the cost is offering the same file again next start.
             AlaLogger.LOGGER.warn("Could not write {} ({}).", markerFile.getFileName(), e.getMessage());
-            deleteQuietly(temporary);
         }
     }
 
@@ -212,14 +190,6 @@ public final class CrashWatch {
         return json.has("schemaVersion") && json.get("schemaVersion").isJsonPrimitive()
                 ? json.get("schemaVersion").getAsInt()
                 : 0;
-    }
-
-    private static void deleteQuietly(Path path) {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException e) {
-            AlaLogger.LOGGER.debug("Could not remove {}: {}", path, e.toString());
-        }
     }
 
     private record Marker(Set<String> seen, boolean firstRun) {

@@ -562,35 +562,12 @@ public final class AlaLoggerApi implements AutoCloseable {
         private boolean compress = true;
 
         private Builder(String baseUrl) {
-            if (baseUrl == null || baseUrl.isBlank()) {
-                throw new IllegalArgumentException("The API base URL is required.");
-            }
-
-            String trimmed = baseUrl.trim();
-
-            while (trimmed.endsWith("/")) {
-                trimmed = trimmed.substring(0, trimmed.length() - 1);
-            }
-
             // Fail here rather than at the first upload: a typo in a config file
             // should be reported when the file is read, not the next time
-            // something crashes.
-            URI parsed;
-
-            try {
-                parsed = new URI(trimmed);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("The API base URL is not a URL: '" + baseUrl + "'.", e);
-            }
-
-            String scheme = parsed.getScheme() == null ? "" : parsed.getScheme().toLowerCase(Locale.ROOT);
-
-            if (!scheme.equals("http") && !scheme.equals("https") || parsed.getHost() == null) {
-                throw new IllegalArgumentException(
-                        "The API base URL must be http:// or https:// with a host: '" + baseUrl + "'.");
-            }
-
-            this.baseUrl = trimmed;
+            // something crashes. What "usable" means is decided by ApiEndpoint,
+            // which Config consults too — the two used to answer differently.
+            this.baseUrl = ApiEndpoint.normalise(baseUrl).orElseThrow(() -> new IllegalArgumentException(
+                    "The API base URL must be http:// or https:// with a host: '" + baseUrl + "'."));
         }
 
         /** See {@link AlaLoggerApi#userAgent(String, String, String)} for the expected shape. */

@@ -37,3 +37,11 @@ processResources {
     dependsOn(configurations.commonResources)
     from(configurations.commonResources)
 }
+
+// Every loader module carries the same obligation: be an adapter, not a second
+// copy of the mod. Hanging the check off `check` means it runs on an ordinary
+// build rather than only when somebody remembers it — this project has no CI of
+// its own, so a check nobody runs is a check that does not exist.
+tasks.named('check') {
+    dependsOn(rootProject.tasks.named('checkLoaderParity'))
+}

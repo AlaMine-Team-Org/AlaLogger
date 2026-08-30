@@ -6,6 +6,42 @@ base {
     archivesName = "${mod_id}-${project.name}-${minecraft_version}"
 }
 
+// The store description comes from its own file, in UTF-8.
+//
+// It used to be a key in gradle.properties, which Gradle reads as ISO-8859-1 —
+// so an em dash written there reached the jar double-encoded, and the first
+// place anybody saw it was a store page. The description is the one value long
+// enough to want a character that is not ASCII, and putting it where it can have
+// one removes the trap instead of remembering it.
+//
+// Line breaks fold into spaces so the file can be wrapped for reading while the
+// value stays a single line: mod metadata is JSON and TOML, and a raw newline is
+// invalid in one of them.
+File descriptionFile = rootProject.file('mod_description.txt')
+
+// Said out loud rather than as a FileNotFoundException out of a plugin applied
+// to every module, which would fail `clean` and `tasks` too and name nothing.
+if (!descriptionFile.isFile()) {
+    throw new GradleException("${descriptionFile} is missing. It carries the store description "
+            + 'that both fabric.mod.json and neoforge.mods.toml are built from.')
+}
+
+description = descriptionFile.getText('UTF-8').replaceAll(/\s+/, ' ').trim()
+
+if (description.isEmpty()) {
+    throw new GradleException("${descriptionFile} is empty, and an empty description reaches "
+            + 'both store pages exactly as written.')
+}
+
+// The TOML template carries this between ''' delimiters, which escape nothing.
+// Three quotes in the text would close the literal early and produce a file the
+// loader cannot parse - discovered, if at all, by a player whose game will not
+// start.
+if (description.contains("'''")) {
+    throw new GradleException("${descriptionFile} contains ''' , which ends the TOML literal "
+            + 'that carries it into neoforge.mods.toml.')
+}
+
 repositories {
     mavenCentral()
     // Loom and ModDevGradle add their own repositories to the modules that
@@ -101,6 +137,11 @@ try {
 String buildTime = System.getenv('ALA_BUILD_TIME')?.trim() ?: (commitTime ?: 'dev')
 
 processResources {
+    // Read and write the resources as UTF-8 rather than as whatever this machine
+    // defaults to. Without it the encoding of fabric.mod.json depends on who ran
+    // the build, which is how the same commit produces two different jars.
+    filteringCharset = 'UTF-8'
+
     var expandProps = [
             'version'                : version,
             'githash'                : gitHash,
@@ -124,10 +165,27 @@ processResources {
             'java_version'           : java_version
     ]
 
-    // A literal newline inside a JSON string is invalid, so escape it for the
-    // JSON targets only — the description is the one value long enough to have any.
+    // Escaped as JSON for the JSON targets, because that is what they are.
+    //
+    // fabric.mod.json drops each value between two quotes, so a quote or a
+    // backslash in the description would produce a file Fabric refuses to load -
+    // while NeoForge, whose template uses a TOML literal, shipped fine. Nothing
+    // downstream would have caught it either: the release check greps for the
+    // version string rather than parsing the file.
+    //
+    // This replaces a hand-rolled newline escape that was itself wrong: Groovy's
+    // '\\\\n' is a backslash followed by a backslash and an n, so a newline became
+    // an escaped backslash rather than a line break. It was unreachable, because
+    // the description is folded to one line before it gets here, and wrong is
+    // still wrong.
+    var escapeJson = { String value ->
+        String quoted = groovy.json.JsonOutput.toJson(value)
+
+        quoted.substring(1, quoted.length() - 1)
+    }
+
     var jsonExpandProps = expandProps.collectEntries { key, value ->
-        [(key): value instanceof String ? value.replace('\n', '\\\\n') : value]
+        [(key): value instanceof String ? escapeJson(value) : value]
     }
 
     filesMatching(['pack.mcmeta', 'fabric.mod.json', "${mod_id}.build.json".toString()]) {

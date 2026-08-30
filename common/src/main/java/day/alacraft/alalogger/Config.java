@@ -4,11 +4,14 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import day.alacraft.alalogger.api.ApiEndpoint;
+import day.alacraft.alalogger.i18n.Messages;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * The mod's settings, as a flat JSON file the player can read and edit.
@@ -70,6 +73,16 @@ public final class Config {
     /** Announce successful uploads to other online admins, as vanilla commands do. */
     public boolean broadcastToAdmins = true;
 
+    /**
+     * True when the file named an {@code apiBaseUrl} that could not be used, so
+     * the default is standing in for it.
+     *
+     * <p>Set only for a value somebody actually wrote and got wrong — a blank or
+     * missing key is not a mistake, it is the default being requested, and that
+     * file is rewritten as usual.
+     */
+    private boolean apiBaseUrlRepaired;
+
     public static Config load(Path file) {
         Config config = new Config();
 
@@ -88,7 +101,18 @@ public final class Config {
             }
 
             config.normalise();
-            config.save(file);
+
+            // A file whose apiBaseUrl could not be used is left exactly as the
+            // operator wrote it. Rewriting it would replace their address with
+            // ours, so the typo they have to fix would be gone, their intent
+            // with it, and — because the file would then read as valid — the
+            // warning about it would never appear again. They would be left
+            // sending logs to alacraft.day, silently, having asked for their own
+            // instance. The mod runs on the default meanwhile; only the file is
+            // spared.
+            if (!config.apiBaseUrlRepaired) {
+                config.save(file);
+            }
         } catch (Exception e) {
             // A broken config must not stop a server from starting. Defaults are
             // safe and the file is left untouched so the player can fix it.
@@ -111,12 +135,10 @@ public final class Config {
         json.addProperty("persistHistory", persistHistory);
         json.addProperty("broadcastToAdmins", broadcastToAdmins);
 
-        Path parent = file.getParent();
-        if (parent != null) {
-            Files.createDirectories(parent);
-        }
-        Files.writeString(file, GSON.toJson(json) + System.lineSeparator(), StandardCharsets.UTF_8);
-        PrivateFiles.restrictToOwner(file);
+        // Written the way the delete tokens are, and for the same reason: this
+        // file holds an API token, so it must never exist in a readable-by-anyone
+        // state, not even for the instant between creating it and tightening it.
+        AtomicFiles.writePrivate(file, GSON.toJson(json) + System.lineSeparator());
     }
 
     /** True when uploads should be attached to an account. */
@@ -125,18 +147,57 @@ public final class Config {
     }
 
     /**
+     * The language to answer in, when there is a player to answer.
+     *
+     * <p>Empty means {@code auto}: follow whoever is reading. Every caller that
+     * used to spell out {@code "auto".equals(language)} for itself asks this
+     * instead — there were three such spellings, and a fourth was one copy-paste
+     * away.
+     */
+    public Optional<String> pinnedLanguage() {
+        return language == null || language.isBlank() || "auto".equalsIgnoreCase(language)
+                ? Optional.empty()
+                : Optional.of(language);
+    }
+
+    /**
+     * The language for console output.
+     *
+     * <p>A console has nobody to ask, so it gets the pinned language or English.
+     */
+    public String consoleLanguage() {
+        return pinnedLanguage().orElse(Messages.DEFAULT_LANGUAGE);
+    }
+
+    /**
      * Repair values that would otherwise fail far from their cause — an empty
      * base URL surfacing as a confusing HTTP error, a negative count as an
      * exception while printing chat lines.
      */
     private void normalise() {
-        if (apiBaseUrl == null || apiBaseUrl.isBlank()) {
-            apiBaseUrl = AlaLogger.DEFAULT_API_BASE_URL;
-        }
-        apiBaseUrl = apiBaseUrl.trim();
-        while (apiBaseUrl.endsWith("/")) {
-            apiBaseUrl = apiBaseUrl.substring(0, apiBaseUrl.length() - 1);
-        }
+        // A URL this method cannot repair used to leave the file happy and fail
+        // one floor up, inside the API client's builder — which is called from
+        // the mod's entrypoint, so a forgotten "https://" stopped the server from
+        // starting at all. The check now lives where the repair does.
+        String configured = apiBaseUrl;
+
+        apiBaseUrlRepaired = false;
+
+        apiBaseUrl = ApiEndpoint.normalise(configured).orElseGet(() -> {
+            if (configured != null && !configured.isBlank()) {
+                // Every start, not once: the file keeps the broken value, so the
+                // complaint has to keep pace with it. An error that stops after
+                // the first restart is an error nobody acts on.
+                apiBaseUrlRepaired = true;
+
+                AlaLogger.LOGGER.error("apiBaseUrl in the config is not a usable URL (\"{}\"), so {} is "
+                                + "used instead. It has to start with https:// (or http://) and name a "
+                                + "host. The file was left as it is, so the value can be corrected.",
+                        configured, AlaLogger.DEFAULT_API_BASE_URL);
+            }
+
+            return AlaLogger.DEFAULT_API_BASE_URL;
+        });
 
         apiToken = apiToken == null ? "" : apiToken.trim();
         language = language == null || language.isBlank() ? "auto" : language.trim().toLowerCase();

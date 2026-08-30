@@ -2,6 +2,7 @@ package day.alacraft.alalogger.api;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import day.alacraft.alalogger.ChatText;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,15 +51,22 @@ public record Insight(
     public record Solution(String text) {
 
         public Solution {
-            text = text == null ? "" : text;
+            text = ChatText.plain(text);
         }
     }
 
+    /**
+     * Everything a player will read is cleaned of formatting escapes here rather
+     * than at the point it is printed. This is the seam the text crosses on its
+     * way in from the network, and it is the only one every platform shares — a
+     * Paper build would print these sentences through Adventure and would
+     * otherwise have to remember to do this again.
+     */
     public Insight {
         code = code == null ? "" : code;
         severity = severity == null ? "info" : severity;
-        message = message == null ? "" : message;
-        hint = hint == null ? "" : hint;
+        message = ChatText.plain(message);
+        hint = ChatText.plain(hint);
         line = line == null ? OptionalInt.empty() : line;
         solutions = solutions == null ? List.of() : List.copyOf(solutions);
     }

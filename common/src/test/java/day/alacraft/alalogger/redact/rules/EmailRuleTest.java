@@ -16,7 +16,7 @@ class EmailRuleTest {
     void masksAnAddress() {
         assertEquals(
                 "Licence check failed for [email-removed]",
-                redact("Licence check failed for artem.pavelko@gmail.com"));
+                redact("Licence check failed for steve.smith@gmail.com"));
     }
 
     @Test

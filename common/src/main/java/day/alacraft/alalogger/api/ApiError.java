@@ -1,5 +1,7 @@
 package day.alacraft.alalogger.api;
 
+import day.alacraft.alalogger.ChatText;
+
 import java.time.Duration;
 import java.util.Optional;
 
@@ -27,7 +29,10 @@ public record ApiError(
     public ApiError {
         code = code == null ? ApiErrorCode.UNKNOWN : code;
         rawCode = rawCode == null ? "" : rawCode;
-        message = message == null ? "" : message;
+        // Meant for a log file, but it does reach chat: an error nothing else
+        // explains is shown to the player as "reason: <this>". The site wrote it,
+        // and the site is whatever apiBaseUrl points at.
+        message = ChatText.plain(message);
         retryAfter = retryAfter == null ? Optional.empty() : retryAfter;
     }
 

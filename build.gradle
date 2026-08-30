@@ -3,9 +3,17 @@ plugins {
     alias(libs.plugins.fabric.loom) apply false
     // https://projects.neoforged.net/neoforged/moddevgradle
     alias(libs.plugins.neoforge.moddev) apply false
+    // Registers checkLoaderParity, which every loader module's `check` depends on.
+    // It lives on the root because it compares two modules against each other and
+    // therefore belongs to neither.
+    id 'loader-parity'
 }
 
-// `version`, `group` and `description` are not set here on purpose: Gradle
-// applies matching keys from gradle.properties to every project's own
-// properties, so all three modules already carry them. Setting them again would
-// be a second source of truth for the same three values.
+// `version` and `group` are not set here on purpose: Gradle applies matching
+// keys from gradle.properties to every project's own properties, so all modules
+// already carry them, and setting them again would be a second source of truth.
+//
+// `description` used to come from there too and no longer does — it is read from
+// mod_description.txt by build-logic, because gradle.properties is parsed as
+// ISO-8859-1 and the description is the one value that wants a character outside
+// ASCII.

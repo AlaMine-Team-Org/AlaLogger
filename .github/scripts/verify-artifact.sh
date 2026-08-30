@@ -88,8 +88,10 @@ else
         printf '%s\n' "$META" | grep -n 'version' | sed 's/^/       /'
     fi
 
-    # Mojibake check. gradle.properties is read as ISO-8859-1, so a non-ASCII
-    # character in the description arrives here double-encoded - and the first
+    # Mojibake check. The description now comes from mod_description.txt in UTF-8,
+    # which is what removed this failure mode - but gradle.properties is still
+    # read as ISO-8859-1 and still supplies mod_name and the author, so a
+    # non-ASCII character there would still arrive double-encoded, and the first
     # place it is ever seen is a store page.
     if printf '%s' "$META" | grep -qP '[\xc3][\x80-\xbf][\xc2-\xc3][\x80-\xbf]'; then
         bad "the metadata looks double-encoded - check gradle.properties for non-ASCII"

@@ -1,0 +1,4 @@
+Share Minecraft logs and crash reports with one command. The log is cleaned of
+IP addresses, account names and session tokens before it leaves your machine,
+then uploaded to alacraft.day. You get a short link and the detected problems
+right in chat, in your own language.

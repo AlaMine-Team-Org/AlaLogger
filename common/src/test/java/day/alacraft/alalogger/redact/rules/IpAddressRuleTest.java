@@ -22,10 +22,10 @@ class IpAddressRuleTest {
 
     @Test
     void masksAJoiningPlayersAddress() {
-        String log = "[12:00:03] [Server thread/INFO]: Ma3auka[/203.0.113.7:51234] logged in";
+        String log = "[12:00:03] [Server thread/INFO]: Alex[/203.0.113.7:51234] logged in";
 
         assertEquals(
-                "[12:00:03] [Server thread/INFO]: Ma3auka[/***.***.***.***:51234] logged in",
+                "[12:00:03] [Server thread/INFO]: Alex[/***.***.***.***:51234] logged in",
                 redact(log));
     }
 

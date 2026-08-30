@@ -34,7 +34,13 @@ public final class Messages {
     /** The languages shipped with the mod — the same seven the site serves. */
     public static final String[] SUPPORTED = {"en_us", "ru_ru", "uk_ua", "de_de", "fr_fr", "es_es", "ja_jp"};
 
-    private static final String FALLBACK = "en_us";
+    /**
+     * What to use when there is nobody to ask: a console line, a player whose
+     * client reports a language we do not ship, a key missing from a bundle.
+     */
+    public static final String DEFAULT_LANGUAGE = "en_us";
+
+    private static final String FALLBACK = DEFAULT_LANGUAGE;
 
     private static final Map<String, Map<String, String>> BUNDLES = new HashMap<>();
 

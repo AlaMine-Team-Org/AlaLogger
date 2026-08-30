@@ -19,8 +19,8 @@ import java.util.List;
  *
  * <p>All five require a <b>trailing separator</b>: {@code /home/name/}, not
  * {@code /home/name}. That is fine for a path pointing at a file and useless for
- * the places where a home directory is the whole value — {@code HOME=/home/artem},
- * {@code user.home = C:\Users\User}, {@code Working Directory: /home/artem}. A JVM
+ * the places where a home directory is the whole value — {@code HOME=/home/steve},
+ * {@code user.home = C:\Users\Steve}, {@code Working Directory: /home/steve}. A JVM
  * fatal-error file prints an {@code Environment Variables:} block made almost
  * entirely of that shape, so the last five patterns repeat each one with an
  * end-of-token boundary instead. Closing that hole is most of the reason this
@@ -106,7 +106,7 @@ public final class UserPathRule extends RegexRule {
             // ── the same paths again, without the trailing separator ──
             //
             // These stop at the first whitespace, quote or line end instead of
-            // requiring another separator, which is what catches HOME=/home/artem.
+            // requiring another separator, which is what catches HOME=/home/steve.
             // The token cannot contain a space, so an account folder named
             // "John Smith" is only masked as far as "John" — the alternative,
             // running to the end of the line, would swallow ordinary prose that

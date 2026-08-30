@@ -6,6 +6,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mojang.brigadier.context.CommandContext;
 import day.alacraft.alalogger.AlaLogger;
+import day.alacraft.alalogger.Config;
 import day.alacraft.alalogger.UploadService;
 import day.alacraft.alalogger.api.ApiError;
 import day.alacraft.alalogger.api.ApiException;
@@ -525,15 +526,12 @@ public final class AlaLoggerCommand {
      * installed, which is all of them.
      */
     private static String language(CommandContext<CommandSourceStack> ctx, UploadService service) {
-        String pinned = service.config().language;
-
-        if (pinned != null && !"auto".equalsIgnoreCase(pinned)) {
-            return pinned;
-        }
-
+        Config config = service.config();
         ServerPlayer player = ctx.getSource().getPlayer();
 
-        return player != null ? player.clientInformation().language() : "en_us";
+        return player == null
+                ? config.consoleLanguage()
+                : config.pinnedLanguage().orElseGet(() -> player.clientInformation().language());
     }
 
     private static void reply(CommandContext<CommandSourceStack> ctx, MutableComponent message) {

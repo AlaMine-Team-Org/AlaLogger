@@ -1,0 +1,240 @@
+// Fails the build when the two loader entrypoints stop being mirror images.
+//
+// The mod is one body of logic compiled into a Fabric jar and a NeoForge jar. The
+// only thing standing between that and two mods sharing a name is a rule nobody
+// can see: a loader module holds an adapter, never behaviour. Rules nobody can
+// see are followed until the day they are not, and the failure is silent — the
+// jar builds, the tests pass, and one of the two loaders quietly has a fix the
+// other does not.
+//
+// So the rule is checked instead of remembered. Three questions, all cheap:
+//
+//   1. does each entrypoint perform the same shared steps, in the same order?
+//      A missing one is a wiring that was never connected on that loader.
+//   2. does either entrypoint do work that belongs in `common`?
+//      Finding Config.load() here means the sequence was reimplemented.
+//   3. do they declare the same number of methods?
+//      A private helper added to one side is how the divergence starts.
+//
+// The analysis self-tests before it runs: it is handed a known-drifted pair and a
+// known-good pair and must reach the right verdict on both. A gate that cannot
+// fail is worse than no gate, because it reports success.
+
+def entrypoints = [
+        fabric  : 'fabric/src/main/java/day/alacraft/alalogger/fabric/AlaLoggerFabric.java',
+        neoforge: 'neoforge/src/main/java/day/alacraft/alalogger/neoforge/AlaLoggerNeoForge.java',
+]
+
+// Calls into shared code that both entrypoints must make, exactly once each.
+def sharedSteps = [
+        'AlaLoggerBootstrap.start(',
+        'AlaLoggerCommand.register(',
+        '.serverStarted()',
+        '.serverStopped(',
+]
+
+// Work that belongs in `common`. Present in a loader module, each of these means
+// the same thing: somebody wrote behaviour where an adapter should be.
+def forbidden = [
+        'Config.load('              : 'reads the config',
+        'AlaLoggerApi.builder('     : 'builds the API client',
+        'new UploadService('        : 'assembles the upload service',
+        'new UploadHistory('        : 'opens the upload history',
+        'new CrashWatch('           : 'starts the crash watch',
+        'LogFiles.forGameDirectory(': 'discovers the log files',
+        'Messages.get('             : 'renders text for a human',
+        'AlaLogger.LOGGER'          : 'writes to the log',
+]
+
+tasks.register('checkLoaderParity') {
+    group = 'verification'
+    description = 'Fails when the Fabric and NeoForge entrypoints have drifted apart.'
+
+    def files = entrypoints.collectEntries { name, path -> [(name): rootProject.file(path)] }
+    inputs.files(files.values()).withPropertyName('entrypoints')
+
+    doLast {
+        // Comments are removed first. Javadoc on these classes names the very
+        // symbols being looked for, and a gate that reads its own documentation
+        // as evidence proves nothing.
+        def strip = { String java ->
+            java.replaceAll(/(?s)\/\*.*?\*\//, '')
+                    .replaceAll(/(?m)^\s*\/\/.*$/, '')
+        }
+
+        // A method declaration at class-body indentation: four spaces, then a
+        // signature ending in a brace. Deeper lines are bodies, not declarations.
+        def methodCount = { String body ->
+            body.readLines().count { it ==~ /^ {4}\S.*\)\s*\{\s*$/ }
+        }
+
+        // The same question asked the other way round. A signature wrapped onto
+        // two lines never ends in ") {" and slips past the pattern above; the
+        // brace that closes the member always sits at class-body indentation.
+        // Two weak signals, and a member added to one side has to evade both.
+        def memberEndCount = { String body ->
+            body.readLines().count { it ==~ /^ {4}\}\s*$/ }
+        }
+
+        def stepOrder = { String body ->
+            def hits = []
+            sharedSteps.each { step ->
+                for (int at = body.indexOf(step); at >= 0; at = body.indexOf(step, at + step.length())) {
+                    hits << [at: at, step: step]
+                }
+            }
+            hits.sort { it.at }.collect { it.step }
+        }
+
+        // A search token ends in an open bracket, which reads badly in a message.
+        def readable = { String token -> token.endsWith('(') ? token + '...)' : token }
+
+        def analyse = { Map<String, String> sources ->
+            def problems = []
+            def bodies = sources.collectEntries { name, java -> [(name): strip(java)] }
+
+            bodies.each { name, body ->
+                // Counted off the ordered list rather than with String.count,
+                // which counts overlapping occurrences. The two agree for every
+                // token here and would stop agreeing the day one of them can
+                // overlap itself.
+                def order = stepOrder(body)
+
+                sharedSteps.each { step ->
+                    int seen = order.count(step)
+                    if (seen != 1) {
+                        problems << "${name}: calls ${readable(step)} ${seen} time(s), expected exactly one"
+                    }
+                }
+                forbidden.each { token, what ->
+                    if (body.contains(token)) {
+                        problems << "${name}: ${what} itself, in ${readable(token)} - that belongs in common"
+                    }
+                }
+
+                // Both member counts read four-space indentation. Reformat the
+                // file and they would both return zero, compare equal, and pass
+                // without having looked at anything - the exact shape of failure
+                // this whole task exists to avoid. An entrypoint always has at
+                // least one method, so zero means the reader, not the file.
+                if (methodCount(body) == 0 || memberEndCount(body) == 0) {
+                    problems << "${name}: no members recognised. This check reads members at " +
+                            "four-space indentation; a reformatted file would switch it off " +
+                            "silently rather than fail, so it fails instead"
+                }
+            }
+
+            // Every entrypoint is compared against the first, so adding a third
+            // loader widens the check instead of quietly switching it off.
+            def names = bodies.keySet() as List
+            def reference = names.first()
+
+            names.tail().each { name ->
+                if (stepOrder(bodies[reference]) != stepOrder(bodies[name])) {
+                    problems << "${reference} and ${name} perform the shared steps in a different order: " +
+                            "${stepOrder(bodies[reference])} vs ${stepOrder(bodies[name])}"
+                }
+                if (methodCount(bodies[reference]) != methodCount(bodies[name])) {
+                    problems << "${reference} declares ${methodCount(bodies[reference])} method(s) and " +
+                            "${name} declares ${methodCount(bodies[name])} - one grew something the other did not"
+                }
+                if (memberEndCount(bodies[reference]) != memberEndCount(bodies[name])) {
+                    problems << "${reference} closes ${memberEndCount(bodies[reference])} member(s) and " +
+                            "${name} closes ${memberEndCount(bodies[name])} - one grew something the other did not"
+                }
+            }
+
+            problems
+        }
+
+        // ---- self-test, before a single real file is read ----
+        //
+        // Six pairs, chosen so that every check has one that fails when it stops
+        // working. An earlier version used two, and mutating stepOrder,
+        // methodCount or the comment stripping into a no-op left it reporting
+        // success - a gate proving only that it can say yes.
+
+        def source = { String loader, String javadoc = '' ->
+            """
+            ${javadoc}
+            public class Entry${loader} {
+                public void start() {
+                    var mod = AlaLoggerBootstrap.start(platform());
+                    register(d -> AlaLoggerCommand.register(d, mod.service()));
+                    onStarted(s -> mod.serverStarted());
+                    onStopped(s -> mod.serverStopped(s.isDedicated()));
+                }
+                private static String version() {
+                    return "1";
+                }
+            }
+            """.stripIndent()
+        }
+
+        def expect = { String label, boolean shouldFail, Map<String, String> pair ->
+            def found = analyse(pair)
+            boolean failed = !found.isEmpty()
+
+            if (failed != shouldFail) {
+                throw new GradleException("checkLoaderParity is broken: it " +
+                        (shouldFail ? "accepts" : "rejects") + " ${label}." +
+                        (failed ? "\n  " + found.join("\n  ") : ""))
+            }
+        }
+
+        expect('an identical pair', false, [a: source('A'), b: source('B')])
+
+        expect('a lost lifecycle call plus logic of its own', true, [
+                a: source('A'),
+                b: source('B').replace('onStopped(s -> mod.serverStopped(s.isDedicated()));',
+                        'Config.load(path);')])
+
+        expect('the same calls in a different order', true, [
+                a: source('A'),
+                b: source('B')
+                        .replace('onStarted(s -> mod.serverStarted());', '@@HOLD@@')
+                        .replace('onStopped(s -> mod.serverStopped(s.isDedicated()));',
+                                'onStarted(s -> mod.serverStarted());')
+                        .replace('@@HOLD@@', 'onStopped(s -> mod.serverStopped(s.isDedicated()));')])
+
+        expect('a helper added to one side only', true, [
+                a: source('A'),
+                b: source('B').replace('    private static String version() {',
+                        '    private static String extra() {\n        return "x";\n    }\n\n'
+                                + '    private static String version() {')])
+
+        // The two that prove the comments are actually removed. Javadoc on these
+        // classes names the very symbols being searched for, so an identity
+        // strip() would read the documentation as evidence and fail both.
+        expect('a javadoc that names the shared steps', false, [
+                a: source('A'),
+                b: source('B', '/** Calls AlaLoggerBootstrap.start( and AlaLoggerCommand.register( . */')])
+
+        expect('a line comment mentioning work that belongs in common', false, [
+                a: source('A'),
+                b: source('B').replace('                public void start() {',
+                        '                // Config.load( belongs in common, which is why it is not here.\n'
+                                + '                public void start() {')])
+
+        // ---- the real thing ----
+
+        files.each { name, file ->
+            if (!file.isFile()) {
+                throw new GradleException("checkLoaderParity: ${file} does not exist. " +
+                        'If an entrypoint moved, update build-logic/src/main/groovy/loader-parity.gradle.')
+            }
+        }
+
+        def problems = analyse(files.collectEntries { name, file -> [(name): file.getText('UTF-8')] })
+
+        if (!problems.isEmpty()) {
+            throw new GradleException("The loader entrypoints have drifted apart:\n  " +
+                    problems.join('\n  ') +
+                    '\n\nBoth loaders must do the same things in the same order, and neither may hold ' +
+                    'logic of its own. Move the difference into common/AlaLoggerBootstrap.')
+        }
+
+        logger.lifecycle('Loader parity: {} and {} still mirror each other.',
+                *entrypoints.keySet().toList())
+    }
+}

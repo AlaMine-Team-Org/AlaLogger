@@ -97,7 +97,7 @@ class RedactionPerformanceTest {
         log.append("# A fatal error has been detected by the Java Runtime Environment:\n")
                 .append("# Problematic frame:\n")
                 .append("# C  [nvoglv64.dll+0x8f4a2b]\n")
-                .append("Command Line: net.minecraft.client.main.Main --username Ma3auka")
+                .append("Command Line: net.minecraft.client.main.Main --username Alex")
                 .append(" --accessToken eyJhbGciOiJIUzI1NiJ9.eyJ4dWlkIjoiMjUzNSJ9.dBjftJeZ4CVPmB92K27uhb")
                 .append(" --xuid 2535412345678901\n");
 
@@ -129,7 +129,7 @@ class RedactionPerformanceTest {
 
         log.append("\tWorld Seed: 7026191857309640518\n")
                 .append("USERNAME=Steve\n")
-                .append("HOME=/home/artem\n")
+                .append("HOME=/home/steve\n")
                 .append("contact: someone@example.org\n")
                 .append("END.\n");
 

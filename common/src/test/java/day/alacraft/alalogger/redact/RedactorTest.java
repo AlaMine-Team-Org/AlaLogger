@@ -16,7 +16,7 @@ class RedactorTest {
     @Test
     void reportsEveryRuleAndOnlyCountsWhatMatched() {
         RedactionResult result = redactor.redact(
-                "[12:00:00] [Server thread/INFO]: Ma3auka[/203.0.113.7:51234] logged in");
+                "[12:00:00] [Server thread/INFO]: Alex[/203.0.113.7:51234] logged in");
 
         assertEquals(
                 List.of("memdump", "ip", "email", "path", "seed", "token", "secret"),

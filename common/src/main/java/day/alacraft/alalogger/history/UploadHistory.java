@@ -7,17 +7,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import day.alacraft.alalogger.AlaLogger;
-import day.alacraft.alalogger.PrivateFiles;
+import day.alacraft.alalogger.AtomicFiles;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -34,18 +29,12 @@ import java.util.Optional;
  * crash can never be taken down. Persisting it is the feature; everything else in
  * this class exists to make the persistence trustworthy.
  *
- * <p><b>Written atomically.</b> A new file is composed beside the old one and
- * moved over it, so a server killed mid-write finds either the previous history
- * or the new one, never half of each. The obvious alternative — truncate and
- * rewrite in place — loses every token in the file if the process dies during
- * the write, and the process dying unexpectedly is the exact situation this
- * class is here for.
- *
- * <p><b>Kept private where the filesystem allows it.</b> The tokens are
- * credentials. On POSIX the file is created {@code 0600} before anything is
- * written into it; on Windows it is given an owner-only ACL the moment it
- * exists and before it holds a token, which replaces the config directory's
- * inherited one. See {@link day.alacraft.alalogger.PrivateFiles}.
+ * <p><b>Written atomically, and privately.</b> The tokens are credentials, and
+ * the process that holds them is one that dies unexpectedly — that is what it is
+ * being restarted from. Rewriting the file in place would lose every token in it
+ * if the write were interrupted, and would leave the new one readable by every
+ * account on the machine until the permissions were tightened afterwards.
+ * {@link AtomicFiles#writePrivate} does neither; the reasoning is there.
  *
  * <p><b>Bounded.</b> Only the most recent entries are kept, because an
  * unbounded file on a server that uploads a log per restart grows forever to
@@ -70,8 +59,6 @@ public final class UploadHistory {
     private static final int SCHEMA_VERSION = 1;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-
-    private static final String OWNER_ONLY = "rw-------";
 
     private static final Comparator<UploadRecord> NEWEST_FIRST =
             Comparator.comparing(UploadRecord::uploadedAt).reversed();
@@ -195,27 +182,8 @@ public final class UploadHistory {
     }
 
     private void save() {
-        Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
-
         try {
-            Path parent = file.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-
-            createPrivate(temporary);
-            Files.writeString(temporary, GSON.toJson(document()) + System.lineSeparator(),
-                    StandardCharsets.UTF_8, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
-
-            try {
-                Files.move(temporary, file,
-                        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                // Some network and container filesystems refuse an atomic rename.
-                // A plain replace is still a great deal better than writing in
-                // place, since the content was fully written before the move.
-                Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
-            }
+            AtomicFiles.writePrivate(file, GSON.toJson(document()) + System.lineSeparator());
         } catch (IOException e) {
             // A history that cannot be written must not fail the upload that
             // produced it: the link is already in the player's hands and is the
@@ -223,29 +191,6 @@ public final class UploadHistory {
             // not an exception.
             AlaLogger.LOGGER.warn("Could not write the upload history to {} ({}). "
                     + "Delete tokens from this session will not survive a restart.", file, e.getMessage());
-            deleteQuietly(temporary);
-        }
-    }
-
-    /**
-     * Creates the temporary file with owner-only permissions <em>before</em> it
-     * holds anything, so there is no moment where the tokens exist in a
-     * world-readable file. The permissions travel with the file through the
-     * rename, which is why nothing needs to be re-applied afterwards.
-     *
-     * <p>POSIX can do this in the create call itself. Windows cannot, so the
-     * file is created and tightened immediately after — while it is still
-     * empty, which is the same guarantee by a slower route.
-     */
-    private static void createPrivate(Path path) throws IOException {
-        Files.deleteIfExists(path);
-
-        if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
-            Files.createFile(path, PosixFilePermissions.asFileAttribute(
-                    PosixFilePermissions.fromString(OWNER_ONLY)));
-        } else {
-            Files.createFile(path);
-            PrivateFiles.restrictToOwner(path);
         }
     }
 
@@ -320,14 +265,6 @@ public final class UploadHistory {
     private void trim() {
         while (entries.size() > maxEntries) {
             entries.remove(entries.size() - 1);
-        }
-    }
-
-    private static void deleteQuietly(Path path) {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException e) {
-            AlaLogger.LOGGER.debug("Could not remove {}: {}", path, e.toString());
         }
     }
 }

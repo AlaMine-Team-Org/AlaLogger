@@ -33,7 +33,7 @@ class HsErrRedactionTest {
             "eyJhbGciOiJIUzI1NiJ9.eyJ4dWlkIjoiMjUzNTQxMjM0NTY3ODkwMSJ9.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 
     private static final String COMMAND_LINE = "net.minecraft.client.main.Main"
-            + " --username Ma3auka"
+            + " --username Alex"
             + " --version 26.2"
             + " --gameDir C:\\Users\\Steve\\AppData\\Roaming\\.minecraft"
             + " --accessToken " + TOKEN
@@ -69,7 +69,7 @@ class HsErrRedactionTest {
             "",
             "Register to memory mapping:",
             "",
-            "RBX=0x000001f4c0d3e5a0 points into object: <Ma3auka> my base is at 1200 64 -3400",
+            "RBX=0x000001f4c0d3e5a0 points into object: <Alex> my base is at 1200 64 -3400",
             "",
             "Top of Stack: (sp=0x000000f0f36fe8c0)",
             "0x000000f0f36fe8c0:   00007ff8a1b2c3d4 000001f4c0d3e5a0",
@@ -96,11 +96,11 @@ class HsErrRedactionTest {
             "PATH=C:\\Windows\\System32;C:\\Users\\Steve\\AppData\\Local\\Programs\\bin",
             "USERNAME=Steve",
             "USERPROFILE=C:\\Users\\Steve",
-            "COMPUTERNAME=ARTEM-PC",
+            "COMPUTERNAME=DESKTOP-4F2K1",
             // Not standard on Windows, but a JVM launched from git-bash or MSYS
             // inherits it — and on Linux it is always there. It is the value that
             // ends at the account name, with no separator after it.
-            "HOME=/home/artem",
+            "HOME=/home/steve",
             "TMP=C:\\Users\\Steve\\AppData\\Local\\Temp",
             "",
             "---------------  S Y S T E M  ---------------",
@@ -110,7 +110,7 @@ class HsErrRedactionTest {
             "-- System Details --",
             "\tMinecraft Version: 26.2",
             "\tWorld Seed: 7026191857309640518",
-            "\tPlayer Count: 1/8; [ServerPlayer['Ma3auka'/230, l='ServerLevel[world]']]",
+            "\tPlayer Count: 1/8; [ServerPlayer['Alex'/230, l='ServerLevel[world]']]",
             "\tMod List:",
             "\t\tneoforge-26.1.2.28-beta-universal.jar |NeoForge |neoforge |26.1.2.28-beta |Manifest: 631aab87",
             "\t\tjei-15.2.0.27.jar                     |Just Enough Items |jei |15.2.0.27 |Manifest: NOSIGNATURE",
@@ -142,7 +142,7 @@ class HsErrRedactionTest {
     @Test
     void removesTheOperatingSystemAccountName() {
         assertFalse(clean.contains("Steve"), clean);
-        assertFalse(clean.contains("artem"), clean);
+        assertFalse(clean.contains("steve"), clean);
 
         assertTrue(clean.contains("USERNAME=********"), clean);
         assertTrue(clean.contains("USERPROFILE=********"), clean);
@@ -152,7 +152,7 @@ class HsErrRedactionTest {
 
     @Test
     void removesAHomePathThatEndsAtTheAccountName() {
-        // HOME=/home/artem has no separator after the name, which every upstream
+        // HOME=/home/steve has no separator after the name, which every upstream
         // path pattern required. This one line is why the rule was extended.
         assertTrue(clean.contains("HOME=/home/********"), clean);
     }
@@ -189,8 +189,8 @@ class HsErrRedactionTest {
         assertTrue(clean.contains("# Problematic frame:"), "the single most useful line");
         assertTrue(clean.contains("EXCEPTION_ACCESS_VIOLATION (0xc0000005)"), "the crash class");
         assertTrue(clean.contains("Temurin-25.0.2+10"), "the Java build");
-        assertTrue(clean.contains("Ma3auka"), "the player's name is public and is left alone");
-        assertTrue(clean.contains("--username Ma3auka"), "and stays readable in the command line");
+        assertTrue(clean.contains("Alex"), "the player's name is public and is left alone");
+        assertTrue(clean.contains("--username Alex"), "and stays readable in the command line");
         assertTrue(clean.contains("OS: Windows 10, Build 19041"), "the platform");
 
         // The section headers survive their emptied bodies, so it is obvious what

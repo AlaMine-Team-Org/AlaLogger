@@ -77,7 +77,7 @@ class AuthTokenRuleTest {
     void keepsTheThingsThatAreNotCredentials() {
         // The nickname and the UUID are public — Mojang hands out the UUID for any
         // name — and both are needed to read the log.
-        String log = "--username Ma3auka --version 26.2 --uuid 069a79f4a1b2c3d4e5f6";
+        String log = "--username Alex --version 26.2 --uuid 069a79f4a1b2c3d4e5f6";
 
         assertEquals(log, redact(log));
     }
