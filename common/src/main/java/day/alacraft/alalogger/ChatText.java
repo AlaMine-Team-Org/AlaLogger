@@ -94,6 +94,26 @@ public final class ChatText {
         return safe == null ? bounded : safe.toString();
     }
 
+    /**
+     * Someone else's sentence, fitted into the middle of one of ours.
+     *
+     * <p>Error messages arrive already punctuated ("Log not found."), and the
+     * templates that quote them supply their own full stop, so the naive
+     * concatenation reads "Log not found.. Details are in the server log." —
+     * seen in game on 2026-09-02. Trailing stops are dropped; a question or
+     * exclamation mark stays, because removing those changes what the sentence
+     * says.
+     */
+    public static String embedded(String text) {
+        String safe = plain(text).strip();
+
+        while (safe.endsWith(".")) {
+            safe = safe.substring(0, safe.length() - 1).stripTrailing();
+        }
+
+        return safe;
+    }
+
     private static char replacementFor(char c) {
         if (c == FORMATTING_ESCAPE) {
             return '&';

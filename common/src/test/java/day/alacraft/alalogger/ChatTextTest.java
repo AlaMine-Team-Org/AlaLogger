@@ -126,4 +126,34 @@ class ChatTextTest {
         assertFalse(insight.solutions().get(0).text().indexOf(ESCAPE) >= 0);
         assertEquals("&cServer says: run /op attacker", insight.message());
     }
+
+    @Test
+    @DisplayName("a quoted sentence does not bring its full stop into ours")
+    void embeddedDropsTrailingStops() {
+        // The line that produced this, in game on 2026-09-02: the site answers
+        // "Log not found." and the template ends "{reason}. Details are in the
+        // server log.", so chat read "Log not found.. Details are in the".
+        assertEquals("Log not found", ChatText.embedded("Log not found."));
+        assertEquals("Log not found", ChatText.embedded("  Log not found.  "));
+        assertEquals("Log not found", ChatText.embedded("Log not found..."));
+
+        // A sentence that ends in something other than a full stop keeps it:
+        // dropping a question mark changes what the sentence says.
+        assertEquals("Is the id right?", ChatText.embedded("Is the id right?"));
+        assertEquals("Upload refused!", ChatText.embedded("Upload refused!"));
+
+        // An abbreviation mid-sentence is not a trailing stop.
+        assertEquals("Check the config, e.g. apiBaseUrl", ChatText.embedded("Check the config, e.g. apiBaseUrl"));
+    }
+
+    @Test
+    @DisplayName("embedded still neutralises what plain neutralises")
+    void embeddedIsPlainFirst() {
+        // Not a second, weaker path into chat: whatever the sentence carries is
+        // stripped exactly as it would be anywhere else, and only then trimmed.
+        assertEquals("&cnot found", ChatText.embedded(ESCAPE + "cnot found."));
+        assertEquals("a b", ChatText.embedded("a\nb."));
+        assertEquals("", ChatText.embedded(null));
+        assertEquals("", ChatText.embedded("..."));
+    }
 }

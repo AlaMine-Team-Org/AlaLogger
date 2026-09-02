@@ -38,7 +38,7 @@ link and whatever it recognised, in the player's own language.
 
 ## Status
 
-Version 0.1.0 on Minecraft 26.2, for **Fabric and NeoForge**, both verified in a
+Version 0.1.1 on Minecraft 26.2, for **Fabric and NeoForge**, both verified in a
 live game.
 
 Paper/Folia and Velocity follow. The shared code is split so that adding one is a

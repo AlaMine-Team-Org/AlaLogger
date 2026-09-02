@@ -6,6 +6,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.mojang.brigadier.context.CommandContext;
 import day.alacraft.alalogger.AlaLogger;
+import day.alacraft.alalogger.ChatText;
 import day.alacraft.alalogger.Config;
 import day.alacraft.alalogger.UploadService;
 import day.alacraft.alalogger.api.ApiError;
@@ -41,6 +42,28 @@ public final class AlaLoggerCommand {
 
     /** How many files to list before telling the player to narrow it down. */
     private static final int LIST_LIMIT = 15;
+
+    /**
+     * What the player asked for, so a failure can name the thing that failed.
+     *
+     * <p>Every error used to read "Upload failed:" regardless of the command —
+     * a failed delete told the player the opposite of what had happened, and a
+     * failed listing blamed an upload that was never attempted. Seen in game on
+     * 2026-09-02: "Upload failed: Log not found." in answer to a delete.
+     */
+    private enum Operation {
+
+        UPLOAD("error.generic"),
+        DELETE("error.delete_failed"),
+        INSIGHTS("error.insights_failed"),
+        LIST("error.list_failed");
+
+        private final String genericKey;
+
+        Operation(String genericKey) {
+            this.genericKey = genericKey;
+        }
+    }
 
     private AlaLoggerCommand() {
     }
@@ -110,11 +133,11 @@ public final class AlaLoggerCommand {
     // ------------------------------------------------------------- uploading
 
     private static int uploadCurrent(CommandContext<CommandSourceStack> ctx, UploadService service) {
-        return resolveThenUpload(ctx, service, service.current(), null);
+        return resolveThenUpload(ctx, service, service.current(), null, "search.start", "error.no_log_file");
     }
 
     private static int uploadNamed(CommandContext<CommandSourceStack> ctx, UploadService service, String name) {
-        return resolveThenUpload(ctx, service, service.find(name), name);
+        return resolveThenUpload(ctx, service, service.find(name), name, "search.start", "error.file_not_found");
     }
 
     /**
@@ -127,7 +150,7 @@ public final class AlaLoggerCommand {
     private static int uploadCrash(CommandContext<CommandSourceStack> ctx, UploadService service) {
         return resolveThenUpload(ctx, service,
                 service.latest(LogFileType.CRASH_REPORT, LogFileType.JVM_CRASH, LogFileType.NETWORK_REPORT),
-                null);
+                null, "search.start_crash", "error.no_crash_report");
     }
 
     /**
@@ -137,24 +160,34 @@ public final class AlaLoggerCommand {
      * felt: the command did its disk work before saying anything, so on a large
      * log it looked frozen and people reasonably assumed it had failed. Every
      * path now answers in the same tick it was typed.
+     *
+     * <p>Both the waiting line and the nothing-found line are the caller's,
+     * because only the caller knows what is being looked for: /alalogger crash
+     * announced "looking for the log file" and then answered about crash
+     * reports, which reads as two different commands talking.
      */
     private static int resolveThenUpload(CommandContext<CommandSourceStack> ctx, UploadService service,
-            CompletableFuture<Optional<LogFile>> lookup, String requestedName) {
+            CompletableFuture<Optional<LogFile>> lookup, String requestedName, String searchKey,
+            String emptyKey) {
         CommandSourceStack source = ctx.getSource();
         MinecraftServer server = source.getServer();
         String language = language(ctx, service);
 
-        reply(ctx, ChatFormat.info(language, "search.start"));
+        reply(ctx, ChatFormat.info(language, searchKey));
 
         lookup.whenComplete((found, error) -> server.execute(() -> {
             if (error != null) {
-                replyError(source, language, error, service);
+                replyError(source, language, error, service, Operation.UPLOAD, null);
                 return;
             }
 
+            // Which nothing was found matters: "no crash reports" and "no log
+            // file" send the player to different places, and neither is the
+            // empty upload history that this branch used to report.
             if (found.isEmpty()) {
                 source.sendFailure(requestedName == null
-                        ? ChatFormat.error(language, "list.empty")
+                        ? ChatFormat.error(language, emptyKey,
+                                "command", "/" + ChatFormat.command() + " list")
                         : ChatFormat.error(language, "error.file_not_found",
                                 "file", requestedName, "command", "/" + ChatFormat.command() + " list"));
                 return;
@@ -179,7 +212,7 @@ public final class AlaLoggerCommand {
                 // is not thread-safe.
                 .whenComplete((upload, error) -> server.execute(() -> {
                     if (error != null) {
-                        replyError(source, language, error, service);
+                        replyError(source, language, error, service, Operation.UPLOAD, null);
                         return;
                     }
 
@@ -271,11 +304,11 @@ public final class AlaLoggerCommand {
         MinecraftServer server = source.getServer();
         String language = language(ctx, service);
 
-        reply(ctx, ChatFormat.info(language, "search.start"));
+        reply(ctx, ChatFormat.info(language, "list.searching"));
 
         service.list(filter).whenComplete((files, error) -> server.execute(() -> {
             if (error != null) {
-                replyError(source, language, error, service);
+                replyError(source, language, error, service, Operation.LIST, null);
                 return;
             }
             renderList(source, language, files, filter);
@@ -357,7 +390,7 @@ public final class AlaLoggerCommand {
                     source.sendFailure(ChatFormat.error(language, "delete.not_found", "id", id));
                     return;
                 }
-                replyError(source, language, error, service);
+                replyError(source, language, error, service, Operation.DELETE, id);
                 return;
             }
 
@@ -389,7 +422,7 @@ public final class AlaLoggerCommand {
 
         service.insights(resolved, language).whenComplete((insights, error) -> server.execute(() -> {
             if (error != null) {
-                replyError(source, language, error, service);
+                replyError(source, language, error, service, Operation.INSIGHTS, resolved);
                 return;
             }
 
@@ -464,7 +497,7 @@ public final class AlaLoggerCommand {
      * where the log is precisely what could not be uploaded.
      */
     private static void replyError(CommandSourceStack source, String language, Throwable error,
-            UploadService service) {
+            UploadService service, Operation operation, String id) {
         ApiException failure = ApiException.of(error);
         Throwable cause = failure.getCause();
 
@@ -476,8 +509,9 @@ public final class AlaLoggerCommand {
         ApiError apiError = failure.error();
 
         if (apiError == null) {
-            source.sendFailure(ChatFormat.error(language, "error.generic", "reason", failure.getMessage()));
-            AlaLogger.LOGGER.warn("Upload failed", error);
+            source.sendFailure(ChatFormat.error(language, operation.genericKey,
+                    "reason", ChatText.embedded(failure.getMessage()), "id", String.valueOf(id)));
+            AlaLogger.LOGGER.warn("{} failed", operation, error);
             return;
         }
 
@@ -486,13 +520,22 @@ public final class AlaLoggerCommand {
             case RATE_LIMITED -> rateLimited(language, apiError, service.config().hasApiToken());
             case TOO_LARGE -> ChatFormat.error(language, "error.too_large", "file", "");
             case INVALID_TOKEN, INSUFFICIENT_SCOPE -> ChatFormat.error(language, "error.invalid_token");
-            default -> ChatFormat.error(language, "error.generic", "reason", apiError.message());
+            // "Log not found" is the site saying the id is gone, not that
+            // something went wrong here: retention runs from the last read, so
+            // a link from a few months ago legitimately answers this way.
+            case NOT_FOUND -> id == null
+                    ? ChatFormat.error(language, operation.genericKey,
+                            "reason", ChatText.embedded(apiError.message()), "id", String.valueOf(id))
+                    : ChatFormat.error(language, "error.gone", "id", id, "host", service.host());
+            case REMOVED -> ChatFormat.error(language, "error.removed", "id", String.valueOf(id));
+            default -> ChatFormat.error(language, operation.genericKey,
+                    "reason", ChatText.embedded(apiError.message()), "id", String.valueOf(id));
         };
 
         source.sendFailure(message);
 
         // The console keeps the technical detail; chat keeps the sentence.
-        AlaLogger.LOGGER.warn("Upload failed: {} ({})", apiError.message(), apiError.code());
+        AlaLogger.LOGGER.warn("{} failed: {} ({})", operation, apiError.message(), apiError.code());
     }
 
     /**
