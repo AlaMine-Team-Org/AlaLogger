@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Guards the seven bundles against the two ways a translation set rots: a key
+ * Guards the nine bundles against the two ways a translation set rots: a key
  * added to English and forgotten elsewhere, and a placeholder mistyped during
  * translation.
  *
@@ -70,7 +70,7 @@ class MessagesTest {
 
     @Test
     void unknown_language_falls_back_to_english() {
-        assertEquals("en_us", Messages.normalise("pt_br"));
+        assertEquals("en_us", Messages.normalise("it_it"));
         assertEquals("en_us", Messages.normalise(null));
         assertEquals("en_us", Messages.normalise(""));
     }
@@ -90,6 +90,9 @@ class MessagesTest {
         // the player to a 404 instead of their own language.
         assertEquals("uk", Messages.siteLocale("uk_ua"));
         assertEquals("ja", Messages.siteLocale("ja_jp"));
+        assertEquals("zh", Messages.siteLocale("zh_cn"));
+        // The mod translates the chat text into Portuguese, but the site has no
+        // Portuguese pages, so the link itself falls back to English.
         assertEquals("en", Messages.siteLocale("pt_br"));
     }
 

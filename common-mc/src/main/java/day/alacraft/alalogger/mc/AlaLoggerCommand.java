@@ -44,6 +44,15 @@ public final class AlaLoggerCommand {
     private static final int LIST_LIMIT = 15;
 
     /**
+     * How many past uploads to print.
+     *
+     * <p>Lower than {@link #LIST_LIMIT} because each of these lines carries a
+     * link and its buttons, so it wraps where a file name does not: ten of them
+     * already fill the chat a player has open.
+     */
+    private static final int HISTORY_LIMIT = 10;
+
+    /**
      * What the player asked for, so a failure can name the thing that failed.
      *
      * <p>Every error used to read "Upload failed:" regardless of the command —
@@ -126,6 +135,8 @@ public final class AlaLoggerCommand {
                 .then(Commands.literal("insights")
                         .then(Commands.argument("id", StringArgumentType.word())
                                 .executes(ctx -> insights(ctx, service, StringArgumentType.getString(ctx, "id")))))
+                .then(Commands.literal("history")
+                        .executes(ctx -> history(ctx, service)))
                 .then(Commands.literal("help")
                         .executes(ctx -> help(ctx, service)));
     }
@@ -433,6 +444,92 @@ public final class AlaLoggerCommand {
     }
 
     /**
+     * The links this server has already handed out.
+     *
+     * <p>The history is written to disk so delete tokens survive a restart, and
+     * until now nothing could read it back: a link that scrolled out of chat was
+     * gone for the person who needed to paste it into a support thread, even
+     * though the file on disk still had it.
+     *
+     * <p>Answered on the spot rather than off the game thread like {@code list}:
+     * the entries are already in memory, so unlike a directory scan there is no
+     * disk to wait for.
+     */
+    private static int history(CommandContext<CommandSourceStack> ctx, UploadService service) {
+        String language = language(ctx, service);
+
+        // "Nothing uploaded yet" and "the history is switched off" look identical
+        // from here — an empty list — and send the player to different places.
+        // Only one of the two is something they can change.
+        if (!service.config().persistHistory) {
+            reply(ctx, ChatFormat.info(language, "history.disabled"));
+            return 0;
+        }
+
+        List<UploadRecord> records = service.history().recent(HISTORY_LIMIT);
+
+        if (records.isEmpty()) {
+            reply(ctx, ChatFormat.info(language, "history.empty"));
+            return 0;
+        }
+
+        reply(ctx, ChatFormat.info(language, "history.header"));
+
+        Instant now = Instant.now();
+
+        for (UploadRecord record : records) {
+            reply(ctx, historyLine(language, record, now));
+        }
+
+        int rest = service.history().size() - records.size();
+
+        if (rest > 0) {
+            reply(ctx, ChatFormat.info(language, "history.more", "count", rest));
+        }
+
+        return 1;
+    }
+
+    /**
+     * One past upload: where it is, what it was, and what can still be done to it.
+     *
+     * <p>The address is the stored one rather than one rebuilt for the reader's
+     * language. It is the link that was actually handed out and pasted into a
+     * ticket, and answering with a different one would leave the player comparing
+     * two addresses for the same log.
+     *
+     * <p>Only one button, unlike the line an upload prints. Seen in game: with
+     * two, every entry wrapped onto a second line and the buttons ended up under
+     * the <em>next</em> entry's address, which is a bad place for a delete. The
+     * findings are the one that goes, because they are also behind the link and
+     * in {@code insights <id>}; a delete has no other route that does not start
+     * with copying the id out by hand.
+     */
+    private static MutableComponent historyLine(String language, UploadRecord record, Instant now) {
+        String age = age(Duration.between(record.uploadedAt(), now));
+        String details = record.fileName().isBlank() ? age : record.fileName() + ", " + age;
+
+        MutableComponent line = Component.literal("  ")
+                // A record whose url did not survive still knows its id, and the
+                // id is what every other subcommand takes.
+                .append(record.url().isBlank()
+                        ? ChatFormat.detail(record.id())
+                        : ChatFormat.link(record.url()))
+                .append(ChatFormat.detail(" (" + details + ")"));
+
+        // The delete button is only honest while there is a token behind it: the
+        // site refuses a delete without one, so an unconditional button would
+        // answer "no such log" about a log listed directly above it.
+        if (record.hasToken()) {
+            line.append(ChatFormat.space())
+                    .append(ChatFormat.button(language, "button.delete", "button.delete.hint",
+                            ChatFormat.command() + " delete " + record.id()));
+        }
+
+        return line;
+    }
+
+    /**
      * Ask before deleting.
      *
      * <p>A [delete] button that fires straight away makes a misclick
@@ -474,6 +571,7 @@ public final class AlaLoggerCommand {
                 new Entry(" crash", "help.crash"),
                 new Entry(" list [filter]", "help.list"),
                 new Entry(" insights <id>", "help.insights"),
+                new Entry(" history", "help.history"),
                 new Entry(" delete <id>", "help.delete")
         );
 

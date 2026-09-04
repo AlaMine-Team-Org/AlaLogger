@@ -18,8 +18,9 @@ import java.util.Map;
  *
  * <p>A handful of hardcoded English strings is the usual answer, and for a tool
  * whose audience is "anyone whose server just broke" it is a poor one. The site
- * we upload to already speaks seven languages, so the chat line pointing at it
- * should too.
+ * we upload to already speaks several languages, so the chat line pointing at it
+ * should too — plus Portuguese, which the site itself does not serve yet, because
+ * the player reading chat and the page the link opens are two different audiences.
  *
  * <p><b>Why not vanilla translatable components.</b> A {@code Component.translatable}
  * is resolved on the client against the client's resource packs, so the player
@@ -31,8 +32,12 @@ import java.util.Map;
  */
 public final class Messages {
 
-    /** The languages shipped with the mod — the same seven the site serves. */
-    public static final String[] SUPPORTED = {"en_us", "ru_ru", "uk_ua", "de_de", "fr_fr", "es_es", "ja_jp"};
+    /**
+     * The languages shipped with the mod. The site serves all of these except
+     * {@code pt_br} — see {@link #siteLocale}.
+     */
+    public static final String[] SUPPORTED =
+            {"en_us", "ru_ru", "uk_ua", "de_de", "fr_fr", "es_es", "ja_jp", "pt_br", "zh_cn"};
 
     /**
      * What to use when there is nobody to ask: a console line, a player whose
@@ -75,7 +80,7 @@ public final class Messages {
     /**
      * Map whatever the client reports onto a bundle we actually ship.
      *
-     * <p>Clients send codes we do not translate ({@code pt_br}) and regional
+     * <p>Clients send codes we do not translate ({@code it_it}) and regional
      * variants of ones we do ({@code de_at}). The language half is what matters,
      * so {@code de_at} finds the German bundle instead of silently falling back
      * to English.
@@ -107,6 +112,11 @@ public final class Messages {
      * The locale segment to put in a log's URL, so a Russian player is handed
      * {@code alacraft.day/ru/logs/...} rather than the English page. The site
      * uses two-letter codes, and Ukrainian is {@code uk} there — not {@code ua}.
+     *
+     * <p>{@code pt_br} falls through to the default: the site has no Portuguese
+     * pages at all, so the link goes to English, same as the site's own
+     * fallback. The chat text around the link is still Portuguese either way —
+     * this only decides where the link itself points.
      */
     public static String siteLocale(String language) {
         return switch (normalise(language)) {
@@ -116,6 +126,7 @@ public final class Messages {
             case "fr_fr" -> "fr";
             case "es_es" -> "es";
             case "ja_jp" -> "ja";
+            case "zh_cn" -> "zh";
             default -> "en";
         };
     }

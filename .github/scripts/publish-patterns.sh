@@ -93,7 +93,7 @@ PATTERN_DENIED_PATHS='^(\.c[l]aude|\.agents|research)/|^docs/(PLAN|DEV-RUN)\.md$
 # Files whose Cyrillic is the product, not a leak.
 #
 # The in-game translations are obvious. The named tests are the same class: this
-# mod is translated into seven languages and reads log files byte by byte, so a
+# mod is translated into nine languages and reads log files byte by byte, so a
 # test has to feed it Cyrillic - a redaction summary in Russian, a multi-byte
 # line to truncate, a placeholder a translator got wrong.
 #

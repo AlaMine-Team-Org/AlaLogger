@@ -19,7 +19,7 @@ link and whatever it recognised, in the player's own language.
 
 ## What you get
 
-- **Seven languages, chosen per player.** Messages, detected problems and links
+- **Nine languages, chosen per player.** Messages, detected problems and links
   follow each player's client language, and a player on a vanilla client gets
   theirs too, because the text is resolved on the server side.
 - **Problems in chat, right after the upload.** The site reads the file and names
@@ -35,6 +35,9 @@ link and whatever it recognised, in the player's own language.
   removes the token first.
 - **Deleting your own upload survives a restart.** The delete token is kept on
   disk, so the link you shared this morning is still yours tonight.
+- **`history` finds the link you already sent.** Past uploads are listed newest
+  first, with what was uploaded and when, so a link that scrolled out of chat is
+  not lost with it.
 
 ## Status
 
@@ -86,7 +89,7 @@ against the 26.2 jar are in [docs/MC-26.2-API.md](docs/MC-26.2-API.md).
 |---|---|---|
 | `apiBaseUrl` | `https://alacraft.day/api/v1` | Point it at a self-hosted Log Checker if you run one |
 | `apiToken` | empty | Personal token from [alacraft.day/profile](https://alacraft.day/profile): attaches uploads to your account and raises the rate limit |
-| `language` | `auto` | `auto` follows each player's client language, or pin `en_us`/`ru_ru`/`uk_ua`/`de_de`/`fr_fr`/`es_es`/`ja_jp` |
+| `language` | `auto` | `auto` follows each player's client language, or pin `en_us`/`ru_ru`/`uk_ua`/`de_de`/`fr_fr`/`es_es`/`ja_jp`/`pt_br`/`zh_cn` |
 | `insightsInChat` | `3` | How many detected problems to print. `0` turns it off |
 | `crashWatch` | `true` | Notice new crash reports on startup and offer to upload them — offer, never upload |
 | `persistHistory` | `true` | Remember upload ids and delete tokens across restarts |
