@@ -7,6 +7,8 @@
   "upload.trimmed_tail": "Die Datei war größer als das Limit von {limit}, daher wurden die letzten {lines} Zeilen gesendet.",
   "upload.trimmed_head": "Die Datei war größer als das Limit von {limit}, daher wurden die ersten {lines} Zeilen gesendet.",
   "upload.cleaned": "Vor dem Senden entfernt: {what}.",
+  "button.copy": "[Link kopieren]",
+  "button.copy.hint": "Link in die Zwischenablage kopieren",
   "button.insights": "[was ist kaputt]",
   "button.insights.hint": "Gefundene Probleme erneut anzeigen",
   "button.delete": "[löschen]",

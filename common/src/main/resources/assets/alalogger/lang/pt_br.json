@@ -7,6 +7,8 @@
   "upload.trimmed_tail": "O arquivo excedeu o limite de {limit}, então as últimas {lines} linhas foram enviadas.",
   "upload.trimmed_head": "O arquivo excedeu o limite de {limit}, então as primeiras {lines} linhas foram enviadas.",
   "upload.cleaned": "Removido antes do envio: {what}.",
+  "button.copy": "[copiar link]",
+  "button.copy.hint": "Copiar link para a área de transferência",
   "button.insights": "[o que há de errado]",
   "button.insights.hint": "Mostrar os problemas detectados novamente",
   "button.delete": "[excluir]",

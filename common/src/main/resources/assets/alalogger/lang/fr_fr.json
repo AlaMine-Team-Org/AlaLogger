@@ -7,6 +7,8 @@
   "upload.trimmed_tail": "Le fichier dépassait la limite de {limit}, seules les {lines} dernières lignes ont été envoyées.",
   "upload.trimmed_head": "Le fichier dépassait la limite de {limit}, seules les {lines} premières lignes ont été envoyées.",
   "upload.cleaned": "Retiré avant l'envoi : {what}.",
+  "button.copy": "[copier le lien]",
+  "button.copy.hint": "Copier le lien dans le presse-papiers",
   "button.insights": "[le problème]",
   "button.insights.hint": "Réafficher les problèmes détectés",
   "button.delete": "[supprimer]",

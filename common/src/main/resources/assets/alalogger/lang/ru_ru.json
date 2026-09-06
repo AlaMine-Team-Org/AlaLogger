@@ -7,6 +7,8 @@
   "upload.trimmed_tail": "Файл больше лимита в {limit}, поэтому отправлены последние {lines} строк.",
   "upload.trimmed_head": "Файл больше лимита в {limit}, поэтому отправлены первые {lines} строк.",
   "upload.cleaned": "Удалено перед отправкой: {what}.",
+  "button.copy": "[копировать ссылку]",
+  "button.copy.hint": "Копировать ссылку в буфер обмена",
   "button.insights": "[что не так]",
   "button.insights.hint": "Показать найденные проблемы ещё раз",
   "button.delete": "[удалить]",

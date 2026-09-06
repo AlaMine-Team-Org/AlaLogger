@@ -7,6 +7,8 @@
   "upload.trimmed_tail": "The file was over the {limit} limit, so the last {lines} lines were sent.",
   "upload.trimmed_head": "The file was over the {limit} limit, so the first {lines} lines were sent.",
   "upload.cleaned": "Removed before sending: {what}.",
+  "button.copy": "[copy link]",
+  "button.copy.hint": "Copy Link to Clipboard",
   "button.insights": "[what's wrong]",
   "button.insights.hint": "Show the detected problems again",
   "button.delete": "[delete]",

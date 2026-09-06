@@ -7,6 +7,8 @@
   "upload.trimmed_tail": "文件超过了{limit}的限制，已发送最后{lines}行。",
   "upload.trimmed_head": "文件超过了{limit}的限制，已发送前{lines}行。",
   "upload.cleaned": "发送前已移除：{what}。",
+  "button.copy": "[复制链接]",
+  "button.copy.hint": "复制链接到剪贴板",
   "button.insights": "[查看问题]",
   "button.insights.hint": "再次显示检测到的问题",
   "button.delete": "[删除]",

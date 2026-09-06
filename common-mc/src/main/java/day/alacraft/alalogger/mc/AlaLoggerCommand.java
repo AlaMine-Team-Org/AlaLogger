@@ -238,6 +238,12 @@ public final class AlaLoggerCommand {
                 .append(ChatFormat.space())
                 .append(ChatFormat.link(upload.result().url()))
                 .append(ChatFormat.space())
+                // Next to the address it copies, because the address is what the
+                // player came for: it goes into a ticket, an issue or a Discord
+                // message far more often than it is opened here.
+                .append(ChatFormat.copyButton(language, "button.copy", "button.copy.hint",
+                        upload.result().url()))
+                .append(ChatFormat.space())
                 // Labelled for what it does: the button runs `insights`, and the
                 // address next to it is already the way to open the log in a
                 // browser. It used to say [open] over the insights command, which

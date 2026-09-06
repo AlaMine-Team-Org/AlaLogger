@@ -7,6 +7,8 @@
   "upload.trimmed_tail": "ファイルが上限{limit}を超えていたため、最後の{lines}行を送信しました。",
   "upload.trimmed_head": "ファイルが上限{limit}を超えていたため、最初の{lines}行を送信しました。",
   "upload.cleaned": "送信前に削除した情報: {what}",
+  "button.copy": "[リンクをコピー]",
+  "button.copy.hint": "リンクをクリップボードにコピー",
   "button.insights": "[問題を見る]",
   "button.insights.hint": "検出された問題をもう一度表示する",
   "button.delete": "[削除]",

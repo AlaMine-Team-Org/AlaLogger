@@ -106,6 +106,33 @@ public final class ChatFormat {
                 .withHoverEvent(new HoverEvent.ShowText(hover)));
     }
 
+    /**
+     * A bracketed action that puts text on the player's clipboard, e.g. {@code [copy]}.
+     *
+     * <p>The link next to it opens a browser, which is the wrong move when the
+     * address is going into a ticket or a Discord message: without this the
+     * player has to select the text out of the chat line by hand.
+     *
+     * <p>Read from the 26.2 jar rather than assumed: {@code COPY_TO_CLIPBOARD} is
+     * built with {@code allowFromServer = true} — unlike {@code OPEN_FILE}, which
+     * a server may not send — and the client answers it with
+     * {@code keyboardHandler.setClipboard} and nothing else. No toast, no sound,
+     * no screen change: the click is silent, so the hover text has to say what
+     * the button will do rather than merely name it. Vanilla's own clickable
+     * seed works exactly this way.
+     *
+     * @param value the exact text that lands on the clipboard
+     */
+    public static MutableComponent copyButton(String language, String labelKey, String hoverKey, String value) {
+        return Component.literal(Messages.get(language, labelKey)).withStyle(style -> style
+                // Same dimmed colour as the command buttons: it is one of the
+                // row of actions after the address, not a second link.
+                .withColor(ChatFormatting.DARK_AQUA)
+                .withClickEvent(new ClickEvent.CopyToClipboard(value))
+                .withHoverEvent(new HoverEvent.ShowText(
+                        Component.literal(Messages.get(language, hoverKey)))));
+    }
+
     /** A line that fills the command into the input box instead of running it. */
     public static MutableComponent suggestion(String label, String command) {
         return Component.literal(label).withStyle(style -> style

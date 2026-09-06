@@ -7,6 +7,8 @@
   "upload.trimmed_tail": "Файл більший за ліміт у {limit}, тому надіслано останні {lines} рядків.",
   "upload.trimmed_head": "Файл більший за ліміт у {limit}, тому надіслано перші {lines} рядків.",
   "upload.cleaned": "Видалено перед надсиланням: {what}.",
+  "button.copy": "[копіювати посилання]",
+  "button.copy.hint": "Копіювати посилання до буфера обміну",
   "button.insights": "[що не так]",
   "button.insights.hint": "Показати знайдені проблеми ще раз",
   "button.delete": "[видалити]",
