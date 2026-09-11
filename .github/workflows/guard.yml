@@ -10,6 +10,10 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  # Release notes change on the release page, not through a push, so an edit
+  # there has to start the scan by itself.
+  release:
+    types: [published, edited]
 
 jobs:
   guard:
@@ -48,3 +52,45 @@ jobs:
             exit 1
           fi
           echo "commit metadata is clean"
+
+      # The name and notes on every release page are published text as well,
+      # and neither scan above reads them: they are not a file in the tree and
+      # not a commit. A release body has already carried a commit trailer once,
+      # so each one goes through the same gate as the tree - one file per
+      # release, named after its tag, so a finding points at the page to fix.
+      #
+      # An empty file would scan as clean, so every file starts with the tag
+      # itself, and a file that stays empty - or a count that comes up short -
+      # stops the job instead of passing it.
+      - name: Scan the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir="$RUNNER_TEMP/release-notes"
+          mkdir -p "$dir"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+
+          # gh prints one JSON array per page: -s gathers the pages, add joins
+          # them. -j writes no line endings at all, so the tags travel
+          # NUL-separated and nothing can cling to a tag name.
+          total=$(jq -j -s 'add // [] | length' "$RUNNER_TEMP/releases.json")
+          count=0
+          while IFS= read -r -d '' tag; do
+            file="$dir/$(printf '%s' "$tag" | tr -c 'A-Za-z0-9._-' '_').md"
+            jq -r -s --arg t "$tag" \
+              'add | .[] | select(.tag_name == $t) | .tag_name, (.name // ""), (.body // "")' \
+              "$RUNNER_TEMP/releases.json" > "$file"
+            [ -s "$file" ] || { echo "::error::could not read the release $tag"; exit 1; }
+            count=$((count + 1))
+          done < <(jq -j -s 'add // [] | .[] | .tag_name + "\u0000"' "$RUNNER_TEMP/releases.json")
+
+          if [ "$count" -ne "$total" ]; then
+            echo "::error::read $count of $total releases - refusing to call the rest clean"
+            exit 1
+          fi
+          if [ "$total" -eq 0 ]; then
+            echo "no releases yet - nothing to scan"
+            exit 0
+          fi
+          echo "scanning the tag, name and notes of $total release(s)"
+          bash .github/scripts/scan-clean.sh "$dir"

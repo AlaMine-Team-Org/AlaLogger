@@ -47,8 +47,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The release notes come out of the tag's own message, so the tag
-          # object itself has to be here, not just the commit it points at.
+          # Full history and every tag. This alone does NOT bring the release
+          # notes: checkout afterwards re-points the tag being built at its bare
+          # commit, so the notes step fetches the tag object again by itself.
           fetch-depth: 0
           fetch-tags: true
 
@@ -139,10 +140,34 @@ jobs:
       # first PARAGRAPH and folds its line breaks into one line, so a wrapped
       # opening paragraph arrives on three store pages reflowed into a single
       # long line.
+      #
+      # The tag is fetched again before it is read, and that is not redundant.
+      # On a tag push actions/checkout fetches every tag and then re-points the
+      # one being built at its commit (fetch --no-tags ... +<sha>:refs/tags/<tag>),
+      # so locally it becomes a lightweight tag - and %(contents) of a
+      # lightweight tag is the COMMIT message. Every release before this check
+      # went out that way: the commit message ("Release vX.Y.Z") became the
+      # notes on GitHub and on CurseForge (actions/checkout#290). Hence the
+      # checks: the tag must be an annotated one, it must be the tag of the
+      # commit this run built, and its notes must not open with that commit's
+      # subject.
       - name: Take the release notes from the tag
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
+          git fetch --no-tags --force origin "refs/tags/$TAG:refs/tags/$TAG"
+
+          if [ "$(git cat-file -t "refs/tags/$TAG")" != "tag" ]; then
+            echo "::error::$TAG is a lightweight tag, so it carries no release notes. Cut the release with an annotated tag:"
+            echo "  git tag -a $TAG --cleanup=verbatim -F notes.md"
+            exit 1
+          fi
+
+          if [ "$(git rev-parse "refs/tags/$TAG^{commit}")" != "$GITHUB_SHA" ]; then
+            echo "::error::$TAG now points at another commit than the one this run built ($GITHUB_SHA). The tag was moved after the push; release from the tag as it is now."
+            exit 1
+          fi
+
           git tag -l --format='%(contents)' "$TAG" > NOTES.md
 
           if [ ! -s NOTES.md ] || [ -z "$(tr -d '[:space:]' < NOTES.md)" ]; then
@@ -151,9 +176,23 @@ jobs:
             exit 1
           fi
 
+          SUBJECT="$(git log -1 --format=%s "$GITHUB_SHA")"
+          FIRST="$(grep -m1 -v '^[[:space:]]*$' NOTES.md || true)"
+          if [ "$FIRST" = "$SUBJECT" ]; then
+            echo "::error::The notes of $TAG open with the subject of its commit ('$SUBJECT'). That is the commit message, not release notes."
+            exit 1
+          fi
+
           echo "--- release notes -------------------------------------------"
           cat NOTES.md
           echo "-------------------------------------------------------------"
+
+          # These notes become the release page and the CurseForge changelog,
+          # which the upload API cannot correct afterwards, so they get the
+          # same cleanliness gate as the tree before anything is published.
+          mkdir -p "$RUNNER_TEMP/notes"
+          cp NOTES.md "$RUNNER_TEMP/notes/NOTES.md"
+          bash .github/scripts/scan-clean.sh "$RUNNER_TEMP/notes"
 
       - name: GitHub Release
         if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true
@@ -253,10 +292,52 @@ jobs:
           echo "fabric_ids=[$MC_ID, $FABRIC_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
           echo "neoforge_ids=[$MC_ID, $NEOFORGE_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
 
+      # Re-running a tag must not upload a second copy of a file CurseForge
+      # already has: the upload API can neither list files nor remove them, so a
+      # duplicate stays on the files page. Ask the public cfwidget index first
+      # and skip a loader whose jar it already lists.
+      #
+      # The index lags minutes to hours behind an upload, so this narrows the
+      # window rather than closing it: after a run whose CurseForge step
+      # succeeded, do not re-run the tag until the files show up there. It also
+      # keeps listing a deleted file for a while. An index that does not answer,
+      # or answers about another project, stops the release instead of letting
+      # it upload blind.
+      - name: Which CurseForge files already exist
+        id: curseforge_check
+        if: startsWith(github.ref, 'refs/tags/') && env.SKIP_CURSEFORGE != 'true'
+        env:
+          FABRIC_JAR: ${{ steps.artifact.outputs.fabric_jar }}
+          NEOFORGE_JAR: ${{ steps.artifact.outputs.neoforge_jar }}
+        run: |
+          # To a file, never into a variable: the index lists every file the
+          # project ever published, and past 128 KiB a single argument kills the
+          # step with "Argument list too long".
+          curl -sSf --retry 5 --retry-delay 15 --retry-all-errors \
+            --connect-timeout 20 --max-time 180 \
+            "https://api.cfwidget.com/minecraft/mc-mods/$CURSEFORGE_PROJECT" \
+            -H "User-Agent: AlaMine-Team-Org/AlaLogger-release/1.0" \
+            -o cfwidget.json
+
+          if ! jq -e --arg id "$CURSEFORGE_PROJECT" \
+              '(.id | tostring) == $id and (.files | type) == "array"' cfwidget.json > /dev/null; then
+            echo "::error::cfwidget did not return the file list of CurseForge project $CURSEFORGE_PROJECT. Refusing to upload without knowing what is already there; re-run once it answers."
+            head -c 500 cfwidget.json; echo
+            exit 1
+          fi
+
+          for loader in fabric neoforge; do
+            if [ "$loader" = fabric ]; then jar="$FABRIC_JAR"; else jar="$NEOFORGE_JAR"; fi
+            name="$(basename "$jar")"
+            exists=$(jq -r --arg n "$name" 'any(.files[]; .name == $n)' cfwidget.json)
+            echo "${loader}_exists=$exists" >> "$GITHUB_OUTPUT"
+            echo "CurseForge $name already published: $exists"
+          done
+
       # Two uploads as SEPARATE steps, so a partial failure is unambiguous in the
       # log and only the failed one has to be re-run.
       - name: Publish Fabric to CurseForge
-        if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_CURSEFORGE != 'true'
+        if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_CURSEFORGE != 'true' && steps.curseforge_check.outputs.fabric_exists != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           JAR: ${{ steps.artifact.outputs.fabric_jar }}
@@ -265,7 +346,7 @@ jobs:
         run: bash .github/scripts/publish-curseforge.sh
 
       - name: Publish NeoForge to CurseForge
-        if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_CURSEFORGE != 'true'
+        if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_CURSEFORGE != 'true' && steps.curseforge_check.outputs.neoforge_exists != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           JAR: ${{ steps.artifact.outputs.neoforge_jar }}
