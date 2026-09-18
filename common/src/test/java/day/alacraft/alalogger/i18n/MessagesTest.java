@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Guards the eleven bundles against the two ways a translation set rots: a key
+ * Guards the translation bundles against the two ways a translation set rots: a key
  * added to English and forgotten elsewhere, and a placeholder mistyped during
  * translation.
  *
@@ -111,6 +111,7 @@ class MessagesTest {
         assertEquals("de_de", Messages.normalise("de_at"));
         assertEquals("es_es", Messages.normalise("es_mx"));
         assertEquals("ru_ru", Messages.normalise("ru_ru"));
+        assertEquals("ko_kr", Messages.normalise("ko_kr"));
     }
 
     @Test
@@ -121,12 +122,13 @@ class MessagesTest {
         assertEquals("uk", Messages.siteLocale("uk_ua"));
         assertEquals("ja", Messages.siteLocale("ja_jp"));
         assertEquals("zh", Messages.siteLocale("zh_cn"));
-        // The mod translates the chat text into Portuguese, Polish and Turkish,
+        // The mod translates the chat text into Portuguese, Polish, Turkish and Korean,
         // but the site has no pages in them, so the link itself falls back to
         // English.
         assertEquals("en", Messages.siteLocale("pt_br"));
         assertEquals("en", Messages.siteLocale("pl_pl"));
         assertEquals("en", Messages.siteLocale("tr_tr"));
+        assertEquals("en", Messages.siteLocale("ko_kr"));
     }
 
     @Test

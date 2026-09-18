@@ -110,7 +110,7 @@ else
     bad "the icon is missing from the jar"
 fi
 
-for lang in en_us ru_ru uk_ua de_de fr_fr es_es ja_jp pt_br zh_cn pl_pl tr_tr; do
+for lang in en_us ru_ru uk_ua de_de fr_fr es_es ja_jp pt_br zh_cn pl_pl tr_tr ko_kr; do
     if printf '%s' "$LIST" | grep -q "assets/alalogger/lang/$lang.json"; then
         ok "translation $lang"
     else

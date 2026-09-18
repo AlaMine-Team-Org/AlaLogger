@@ -19,7 +19,7 @@ link and whatever it recognised, in the player's own language.
 
 ## What you get
 
-- **Eleven languages, chosen per player.** Messages, detected problems and links
+- **Twelve languages, chosen per player.** Messages, detected problems and links
   follow each player's client language, and a player on a vanilla client gets
   theirs too, because the text is resolved on the server side.
 - **Problems in chat, right after the upload.** The site reads the file and names
@@ -89,7 +89,7 @@ against the 26.2 jar are in [docs/MC-26.2-API.md](docs/MC-26.2-API.md).
 |---|---|---|
 | `apiBaseUrl` | `https://alacraft.day/api/v1` | Point it at a self-hosted Log Checker if you run one |
 | `apiToken` | empty | Personal token from [alacraft.day/profile](https://alacraft.day/profile): attaches uploads to your account and raises the rate limit |
-| `language` | `auto` | `auto` follows each player's client language, or pin `en_us`/`ru_ru`/`uk_ua`/`de_de`/`fr_fr`/`es_es`/`ja_jp`/`pt_br`/`zh_cn`/`pl_pl`/`tr_tr` |
+| `language` | `auto` | `auto` follows each player's client language, or pin `en_us`/`ru_ru`/`uk_ua`/`de_de`/`fr_fr`/`es_es`/`ja_jp`/`pt_br`/`zh_cn`/`pl_pl`/`tr_tr`/`ko_kr` |
 | `insightsInChat` | `3` | How many detected problems to print. `0` turns it off |
 | `crashWatch` | `true` | Notice new crash reports on startup and offer to upload them — offer, never upload |
 | `persistHistory` | `true` | Remember upload ids and delete tokens across restarts |

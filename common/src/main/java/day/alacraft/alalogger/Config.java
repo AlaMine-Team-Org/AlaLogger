@@ -44,7 +44,8 @@ public final class Config {
 
     /**
      * Message language: {@code auto} follows each player's own client language,
-     * or pin one of en/ru/uk/de/fr/es/ja.
+     * or pin one of the shipped codes,
+     * such as {@code en_us} or {@code ko_kr}.
      *
      * <p>Console output always uses the pinned value, falling back to English —
      * a console has no player to ask.

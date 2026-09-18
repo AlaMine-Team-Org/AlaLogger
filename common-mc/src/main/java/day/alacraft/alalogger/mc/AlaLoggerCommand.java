@@ -1,6 +1,7 @@
 package day.alacraft.alalogger.mc;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
@@ -8,6 +9,7 @@ import com.mojang.brigadier.context.CommandContext;
 import day.alacraft.alalogger.AlaLogger;
 import day.alacraft.alalogger.ChatText;
 import day.alacraft.alalogger.Config;
+import day.alacraft.alalogger.Page;
 import day.alacraft.alalogger.UploadService;
 import day.alacraft.alalogger.api.ApiError;
 import day.alacraft.alalogger.api.ApiException;
@@ -40,15 +42,20 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class AlaLoggerCommand {
 
-    /** How many files to list before telling the player to narrow it down. */
-    private static final int LIST_LIMIT = 15;
+    /**
+     * Files per page of {@code list}.
+     *
+     * <p>Sized for the open chat, which shows twenty lines: ten files, the type
+     * headings between them, the "looking" line and the page line all fit
+     * without the top of the page scrolling away.
+     */
+    private static final int PAGE_SIZE = 10;
 
     /**
      * How many past uploads to print.
      *
-     * <p>Lower than {@link #LIST_LIMIT} because each of these lines carries a
-     * link and its buttons, so it wraps where a file name does not: ten of them
-     * already fill the chat a player has open.
+     * <p>Each of these lines carries a link and its buttons, so it wraps where a
+     * file name does not: ten of them already fill the chat a player has open.
      */
     private static final int HISTORY_LIMIT = 10;
 
@@ -112,9 +119,21 @@ public final class AlaLoggerCommand {
                 .then(Commands.literal("crash")
                         .executes(ctx -> uploadCrash(ctx, service)))
                 .then(Commands.literal("list")
-                        .executes(ctx -> list(ctx, service, null))
+                        .executes(ctx -> list(ctx, service, null, 1))
+                        // The page is a literal plus a number in front of the
+                        // filter, not a trailing number: a filter of "2026" is a
+                        // date in a crash report's name, and a bare number after
+                        // `list` could not say which of the two it meant.
+                        .then(Commands.literal("page")
+                                .then(Commands.argument("page", IntegerArgumentType.integer(1))
+                                        .executes(ctx -> list(ctx, service, null,
+                                                IntegerArgumentType.getInteger(ctx, "page")))
+                                        .then(Commands.argument("filter", StringArgumentType.greedyString())
+                                                .executes(ctx -> list(ctx, service,
+                                                        StringArgumentType.getString(ctx, "filter"),
+                                                        IntegerArgumentType.getInteger(ctx, "page"))))))
                         .then(Commands.argument("filter", StringArgumentType.greedyString())
-                                .executes(ctx -> list(ctx, service, StringArgumentType.getString(ctx, "filter")))))
+                                .executes(ctx -> list(ctx, service, StringArgumentType.getString(ctx, "filter"), 1))))
                 .then(Commands.literal("delete")
                         .then(Commands.argument("id", StringArgumentType.word())
                                 .suggests((ctx, builder) -> {
@@ -316,7 +335,8 @@ public final class AlaLoggerCommand {
 
     // -------------------------------------------------------------- listing
 
-    private static int list(CommandContext<CommandSourceStack> ctx, UploadService service, String filter) {
+    private static int list(CommandContext<CommandSourceStack> ctx, UploadService service, String filter,
+            int page) {
         CommandSourceStack source = ctx.getSource();
         MinecraftServer server = source.getServer();
         String language = language(ctx, service);
@@ -328,13 +348,14 @@ public final class AlaLoggerCommand {
                 replyError(source, language, error, service, Operation.LIST, null);
                 return;
             }
-            renderList(source, language, files, filter);
+            renderList(source, language, files, filter, page);
         }));
 
         return 1;
     }
 
-    private static void renderList(CommandSourceStack source, String language, List<LogFile> files, String filter) {
+    private static void renderList(CommandSourceStack source, String language, List<LogFile> files, String filter,
+            int requestedPage) {
         if (files.isEmpty()) {
             source.sendSuccess(() -> ChatFormat.info(language,
                     filter == null ? "list.empty" : "list.filtered_empty",
@@ -342,18 +363,13 @@ public final class AlaLoggerCommand {
             return;
         }
 
+        Page<LogFile> page = Page.of(files, requestedPage, PAGE_SIZE);
         LogFileType heading = null;
-        int shown = 0;
         Instant now = Instant.now();
 
-        for (LogFile file : files) {
-            if (shown >= LIST_LIMIT) {
-                int rest = files.size() - shown;
-                source.sendSuccess(() -> ChatFormat.info(language, "list.more",
-                        "count", rest, "command", "/" + ChatFormat.command() + " list <filter>"), false);
-                break;
-            }
-
+        for (LogFile file : page.items()) {
+            // Starting from null means every page opens with a heading, so page
+            // two does not begin with a file of a type named only on page one.
             if (file.type() != heading) {
                 heading = file.type();
                 LogFileType shownHeading = heading;
@@ -367,8 +383,51 @@ public final class AlaLoggerCommand {
 
             source.sendSuccess(
                     () -> ChatFormat.suggestion(label, ChatFormat.command() + " share " + file.name()), false);
-            shown++;
         }
+
+        if (page.count() > 1) {
+            source.sendSuccess(() -> pageLine(source, language, page, filter), false);
+        }
+    }
+
+    /**
+     * "Page 2 of 4" and the way to the neighbours.
+     *
+     * <p>Buttons for a player; for the console, which cannot click, the command
+     * that opens the next page, written out.
+     */
+    private static MutableComponent pageLine(CommandSourceStack source, String language, Page<LogFile> page,
+            String filter) {
+        MutableComponent line = ChatFormat.info(language, "list.page",
+                "page", page.number(), "pages", page.count());
+
+        if (source.getPlayer() == null) {
+            if (page.hasNext()) {
+                line.append(ChatFormat.detail("  /" + listCommand(page.number() + 1, filter)));
+            }
+            return line;
+        }
+
+        if (page.hasPrevious()) {
+            line.append(ChatFormat.space())
+                    .append(ChatFormat.button(language, "button.previous", "button.previous.hint",
+                            listCommand(page.number() - 1, filter)));
+        }
+
+        if (page.hasNext()) {
+            line.append(ChatFormat.space())
+                    .append(ChatFormat.button(language, "button.next", "button.next.hint",
+                            listCommand(page.number() + 1, filter)));
+        }
+
+        return line;
+    }
+
+    /** The filter rides along, or [next] would page through a different list. */
+    private static String listCommand(int page, String filter) {
+        String command = ChatFormat.command() + " list page " + page;
+
+        return filter == null || filter.isBlank() ? command : command + " " + filter;
     }
 
     private static String headingKey(LogFileType type) {
