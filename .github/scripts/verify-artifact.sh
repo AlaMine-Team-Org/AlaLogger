@@ -6,8 +6,9 @@
 # broken artifact is found while it is still cheap to fix - before the tag, not
 # after three platforms have a copy of it.
 #
-# Usage: verify-artifact.sh <version> [tree] [loader]
-#        tree defaults to the current directory; loader to "fabric".
+# Usage: verify-artifact.sh <version> [tree] [loader] [mc]
+#        tree defaults to the current directory; loader to "fabric"; mc to the
+#        default game version (`mc=` in gradle.properties).
 #        The jar is expected at <tree>/<loader>/build/libs/alalogger-<loader>-<mc>-<version>.jar
 # Exit:  0 good, 1 something is wrong, 2 unusable input.
 
@@ -16,9 +17,10 @@ set -uo pipefail
 VERSION="${1:-}"
 TREE="${2:-.}"
 LOADER="${3:-fabric}"
+MC="${4:-}"
 
 if [ -z "$VERSION" ]; then
-    echo "usage: $(basename "$0") <version> [tree] [loader]" >&2
+    echo "usage: $(basename "$0") <version> [tree] [loader] [mc]" >&2
     exit 2
 fi
 
@@ -31,8 +33,19 @@ cd "$TREE" || { echo "verify: cannot enter $TREE" >&2; exit 2; }
 
 command -v unzip >/dev/null 2>&1 || { echo "verify: unzip is not on PATH" >&2; exit 2; }
 
-MC="$(grep -E '^minecraft_version=' gradle.properties | head -1 | cut -d= -f2- | tr -d '\r[:space:]')"
-[ -n "$MC" ] || { echo "verify: no minecraft_version in gradle.properties" >&2; exit 2; }
+if [ -z "$MC" ]; then
+    MC="$(grep -E '^mc=' gradle.properties | head -1 | cut -d= -f2- | tr -d '\r[:space:]')"
+fi
+[ -n "$MC" ] || { echo "verify: no mc= in gradle.properties and none given" >&2; exit 2; }
+
+# What the jar has to declare for this game version. Read from the same file the
+# build read, so a jar built for the other version - or one that picked up the
+# other version's metadata - is caught here instead of by a player whose loader
+# refuses it.
+MC_PROPS="versions/$MC.properties"
+[ -f "$MC_PROPS" ] || { echo "verify: $MC_PROPS does not exist" >&2; exit 2; }
+MC_RANGE="$(grep -E '^minecraft_version_range=' "$MC_PROPS" | head -1 | cut -d= -f2- | tr -d '\r')"
+[ -n "$MC_RANGE" ] || { echo "verify: no minecraft_version_range in $MC_PROPS" >&2; exit 2; }
 
 JAR="$LOADER/build/libs/alalogger-$LOADER-$MC-$VERSION.jar"
 
@@ -86,6 +99,27 @@ else
     else
         bad "$META_NAME does not carry version $VERSION"
         printf '%s\n' "$META" | grep -n 'version' | sed 's/^/       /'
+    fi
+
+    # The game version. Fabric states it as "~26.3", NeoForge as the range from
+    # versions/<mc>.properties; the manifest carries the version it was built on.
+    if [ "$LOADER" = "fabric" ]; then
+        EXPECTED_MC="\"minecraft\": \"~$MC\""
+    else
+        EXPECTED_MC="versionRange = \"$MC_RANGE\""
+    fi
+    if printf '%s' "$META" | grep -qF "$EXPECTED_MC"; then
+        ok "$META_NAME declares Minecraft $MC ($EXPECTED_MC)"
+    else
+        bad "$META_NAME does not declare Minecraft $MC (expected $EXPECTED_MC)"
+        printf '%s
+' "$META" | grep -n 'minecraft' | sed 's/^/       /'
+    fi
+    BUILT_ON="$(unzip -p "$JAR" META-INF/MANIFEST.MF 2>/dev/null | grep -E '^Built-On-Minecraft:' | cut -d: -f2- | tr -d '\r[:space:]')"
+    if [ "$BUILT_ON" = "$MC" ]; then
+        ok "the manifest says it was built on Minecraft $MC"
+    else
+        bad "the manifest says Built-On-Minecraft: ${BUILT_ON:-<missing>}, not $MC"
     fi
 
     # Mojibake check. The description now comes from mod_description.txt in UTF-8,

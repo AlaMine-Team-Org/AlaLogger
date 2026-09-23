@@ -46,3 +46,46 @@ include('common')
 include('common-mc')
 include('fabric')
 include('neoforge')
+
+// The Minecraft version this build targets: versions/<mc>.properties, chosen by
+// `mc` (gradle.properties holds the default, `-Pmc=26.2` overrides it). Loaded
+// into every project before its build script runs, so `minecraft_version` and the
+// rest resolve exactly as they did when they were plain gradle.properties keys.
+//
+// Three refusals, each cheaper than what it prevents:
+//   - an unknown version names the ones that exist instead of failing later on a
+//     missing property;
+//   - a file without one of the keys stops here rather than building a jar
+//     whose metadata says "${fabric_version}";
+//   - a key left in gradle.properties as well would be a second source of truth,
+//     and which one wins is not something anyone should have to remember.
+def mc = providers.gradleProperty('mc').get()
+def versionsDir = new File(settingsDir, 'versions')
+def versionFile = new File(versionsDir, "${mc}.properties")
+if (!versionFile.isFile()) {
+    def known = versionsDir.listFiles()*.name
+            .findAll { it.endsWith('.properties') }
+            .collect { it - '.properties' }
+            .sort()
+    throw new GradleException("Unknown Minecraft version '${mc}'. Supported: ${known.join(', ')} (versions/*.properties).")
+}
+def mcProps = new Properties()
+versionFile.withInputStream { mcProps.load(it) }
+
+def required = ['minecraft_version', 'minecraft_version_range', 'neo_form_version',
+                'fabric_version', 'fabric_loader_version', 'neoforge_version']
+def missing = required.findAll { !mcProps.getProperty(it) }
+if (missing) {
+    throw new GradleException("versions/${mc}.properties is missing: ${missing.join(', ')}")
+}
+if (mcProps.getProperty('minecraft_version') != mc) {
+    throw new GradleException("versions/${mc}.properties says minecraft_version=${mcProps.getProperty('minecraft_version')}")
+}
+def duplicated = mcProps.stringPropertyNames().findAll { providers.gradleProperty(it).isPresent() }
+if (duplicated) {
+    throw new GradleException("Set in both gradle.properties (or -P) and versions/${mc}.properties: ${duplicated.sort().join(', ')}")
+}
+
+gradle.beforeProject { project ->
+    mcProps.each { key, value -> project.ext.set(key as String, value) }
+}

@@ -12,13 +12,15 @@ neoForge {
             // reads as one project rather than two.
             ideName = "NeoForge ${it.name.capitalize()} (${project.path})"
         }
+        // One game directory per Minecraft version, as on the Fabric side: a
+        // world saved by 26.3 cannot be opened by 26.2.
         client {
             client()
-            gameDirectory = this.mkdir(this.file('runs/client'))
+            gameDirectory = this.mkdir(this.file("runs/${minecraft_version}/client"))
         }
         server {
             server()
-            gameDirectory = this.mkdir(this.file('runs/server'))
+            gameDirectory = this.mkdir(this.file("runs/${minecraft_version}/server"))
         }
     }
 

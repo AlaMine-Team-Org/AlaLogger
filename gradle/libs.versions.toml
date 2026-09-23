@@ -8,10 +8,10 @@
 # =============================================================================
 
 [versions]
-fabric-loom = "1.17.12"
-neoforge-moddev = "2.0.141"
+fabric-loom = "1.17.21"
+neoforge-moddev = "2.0.147"
 
-# Bundled by Minecraft 26.2 — pinned to the same version so the unit tests,
+# Bundled by Minecraft 26.2 and 26.3 — pinned to the same version so the unit tests,
 # which run without the game, cannot disagree with what ships at runtime.
 gson = "2.14.0"
 slf4j = "2.0.9"

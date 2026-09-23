@@ -16,8 +16,31 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  # The supported Minecraft versions are the files in versions/, read here rather
+  # than listed in this file: a version added there is tested without anyone
+  # having to remember this workflow, and one removed stops being tested.
+  versions:
     runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.list.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          list=$(ls versions/*.properties | sed 's#^versions/##; s#\.properties$##' | jq -R . | jq -cs .)
+          [ "$list" != "[]" ] || { echo "::error::versions/ holds no *.properties"; exit 1; }
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "Minecraft versions: $list"
+
+  test:
+    needs: versions
+    name: Minecraft ${{ matrix.mc }}
+    runs-on: ubuntu-latest
+    strategy:
+      # One version failing must not hide whether the other one passes.
+      fail-fast: false
+      matrix:
+        mc: ${{ fromJSON(needs.versions.outputs.list) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -33,17 +56,24 @@ jobs:
         run: chmod +x gradlew
 
       - name: Unit tests
-        run: ./gradlew :common:test --no-daemon --stacktrace
+        env:
+          MC: ${{ matrix.mc }}
+        run: ./gradlew :common:test -Pmc="$MC" --no-daemon --stacktrace
 
       # Both loaders, always, in one job. The shared code is compiled separately
       # by each of them, so a change that compiles under one can fail under the
       # other - and finding that out at release time means the release is already
-      # half-published.
+      # half-published. The same holds for the two Minecraft versions, which is
+      # why this job runs once per version.
       - name: Build both loaders
-        run: ./gradlew :fabric:build :neoforge:build --no-daemon --stacktrace
+        env:
+          MC: ${{ matrix.mc }}
+        run: ./gradlew :fabric:build :neoforge:build -Pmc="$MC" --no-daemon --stacktrace
 
       - name: Verify both artifacts
+        env:
+          MC: ${{ matrix.mc }}
         run: |
           VERSION=$(grep '^version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
-          bash .github/scripts/verify-artifact.sh "$VERSION" . fabric
-          bash .github/scripts/verify-artifact.sh "$VERSION" . neoforge
+          bash .github/scripts/verify-artifact.sh "$VERSION" . fabric "$MC"
+          bash .github/scripts/verify-artifact.sh "$VERSION" . neoforge "$MC"

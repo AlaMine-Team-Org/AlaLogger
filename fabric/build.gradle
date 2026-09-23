@@ -9,19 +9,21 @@ dependencies {
     implementation("net.fabricmc.fabric-api:fabric-api:${fabric_version}")
 }
 
+// One game directory per Minecraft version: a world saved by 26.3 cannot be
+// opened by 26.2, and the two dev setups should not share a config or history.
 loom {
     runs {
         client {
             client()
             setConfigName('Fabric Client')
             ideConfigGenerated(true)
-            runDir('runs/client')
+            runDir("runs/${minecraft_version}/client")
         }
         server {
             server()
             setConfigName('Fabric Server')
             ideConfigGenerated(true)
-            runDir('runs/server')
+            runDir("runs/${minecraft_version}/server")
         }
     }
 }

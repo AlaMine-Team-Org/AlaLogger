@@ -125,6 +125,78 @@ class IpAddressRuleTest {
     }
 
     @Test
+    void keepsAStableNeoForgeVersionInStackFrames() {
+        // The case the -beta guard above never covered: a stable build has no
+        // suffix, and 26.2.0.67 came back as neoforge@***.***.***.*** on every
+        // frame. With and without the class-loader prefix the JDK prints.
+        String log = String.join("\n",
+                "\tat TRANSFORMER/neoforge@26.2.0.67/net.neoforged.neoforge.event.EventHooks.onEntityTick(EventHooks.java:120)",
+                "\tat neoforge@26.3.0.12/net.neoforged.neoforge.common.NeoForge.post(NeoForge.java:40)");
+
+        assertEquals(log, redact(log));
+    }
+
+    @Test
+    void stillMasksAnAddressAfterAnAtSign() {
+        // The frame guard needs the frame. An address after "@" anywhere else is
+        // still an address - including one followed by a slash.
+        String log = String.join("\n",
+                "Tunnel opened by root@203.0.113.7 on port 22",
+                "Proxy: user@203.0.113.7/socks");
+
+        assertEquals(
+                String.join("\n",
+                        "Tunnel opened by root@***.***.***.*** on port 22",
+                        "Proxy: user@***.***.***.***/socks"),
+                redact(log));
+    }
+
+    @Test
+    void keepsTheLoaderLineOfTheSystemDetails() {
+        // Verbatim from a real NeoForge 26.2 crash report: one tab, so neither the
+        // mod-list guards (two or more) nor the value exemptions (all parts below
+        // 256) applied, and it was masked in every report checked.
+        String log = "\tNeoForge: 26.2.0.67";
+
+        assertEquals(log, redact(log));
+    }
+
+    @Test
+    void stillMasksAnAddressOnAnOrdinarySystemDetailsRow() {
+        String log = "\tServer address: 203.0.113.7";
+
+        assertEquals("\tServer address: ***.***.***.***", redact(log));
+    }
+
+    @Test
+    void keepsVersionDirectoriesInLibraryPaths() {
+        // What NeoForge's loader prints at startup for every jar it loads. The
+        // file name was already safe; the Maven version directory was not.
+        String log = String.join("\n",
+                "[main/INFO] [net.neoforged.fml.loading.FMLLoader/]:  - C:/Users/Alex/AppData/Roaming/.minecraft/libraries/net/neoforged/neoforge/26.2.0.67/neoforge-26.2.0.67-universal.jar",
+                "\t- jei (jar(D:\\mods\\cache\\jei\\31.3.0.16\\jei-26.3-neoforge-31.3.0.16.jar))");
+
+        assertEquals(log, redact(log));
+    }
+
+    @Test
+    void stillMasksAnAddressThatIsAUrlHostOrAShare() {
+        // Two separators in front mean a host, not a directory: the authority of a
+        // URL, a UNC share. A socket address is followed by a port, not a slash.
+        String log = String.join("\n",
+                "GET http://203.0.113.7/api/status",
+                "Opening \\\\203.0.113.7\\share\\world",
+                "Connecting to mc.example.org/203.0.113.7:25565");
+
+        assertEquals(
+                String.join("\n",
+                        "GET http://***.***.***.***/api/status",
+                        "Opening \\\\***.***.***.***\\share\\world",
+                        "Connecting to mc.example.org/***.***.***.***:25565"),
+                redact(log));
+    }
+
+    @Test
     void keepsLibraryVersionsFromTheLoadedDllInventory() {
         // Verbatim rows from crash-2026-04-25_06.00.44-client.txt, where thirteen
         // of these came back masked before the guard covered the shape. This

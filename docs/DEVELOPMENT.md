@@ -12,18 +12,45 @@ Requires **JDK 25** — Minecraft 26.x will not start on anything older.
 Build both. The shared modules are compiled separately by each loader, so code
 that compiles under one can fail under the other.
 
+## Minecraft versions
+
+One source builds for every supported Minecraft version. What differs between
+them lives in `versions/<mc>.properties` — Minecraft, NeoForm, Fabric API and
+the loaders — and `mc=` in `gradle.properties` names the default (the newest).
+Pick another with `-Pmc`:
+
+```bash
+./gradlew build              # Minecraft 26.3
+./gradlew build -Pmc=26.2    # Minecraft 26.2
+```
+
+The jar name carries the game version (`alalogger-fabric-26.3-<version>.jar`),
+so the builds never overwrite each other. A key may live in `versions/` or in
+`gradle.properties`, never both; the build refuses an unknown version, a
+version file missing a key, and a key set twice.
+
+Build and test **every** version before a change is done — CI does, and one
+tag releases them all. The values in `versions/*.properties` are also the
+floors the mod declares to players, so raise one only for a reason.
+
+To add a version: copy the newest file, update its values, and build. To drop
+one: delete its file.
+
 ## Run the game
 
 ```bash
-./gradlew :fabric:runClient   # dev client, game dir: fabric/runs/client/
-./gradlew :fabric:runServer   # dev server, game dir: fabric/runs/server/
+./gradlew :fabric:runClient             # dev client, game dir: fabric/runs/26.3/client/
+./gradlew :fabric:runServer             # dev server, game dir: fabric/runs/26.3/server/
+./gradlew :fabric:runClient -Pmc=26.2   # the same for 26.2, in fabric/runs/26.2/
 ```
 
 `:neoforge:runClient` and `:neoforge:runServer` are the same for the other
 loader, with their own `neoforge/runs/` directories.
 
 The dev environment is self-contained: worlds, configs and logs live under
-`fabric/runs/` and never touch a real Minecraft installation.
+`<loader>/runs/<mc>/` and never touch a real Minecraft installation. Each game
+version has its own directory because a world saved by a newer version cannot
+be opened by an older one.
 
 Two things that will otherwise cost you an afternoon:
 
@@ -35,7 +62,7 @@ Two things that will otherwise cost you an afternoon:
 
 ## Point the mod somewhere else
 
-`fabric/runs/client/config/alalogger.json` is created on first run. Set
+`fabric/runs/26.3/client/config/alalogger.json` is created on first run. Set
 `apiBaseUrl` to a local instance of the Log Checker while developing:
 
 ```json
@@ -79,4 +106,5 @@ single line, becomes the description in `fabric.mod.json` and
 because Gradle reads that file as ISO-8859-1, and a non-ASCII character there
 reaches the jar double-encoded — first seen, in practice, on a store page.
 
-API signatures verified against the 26.2 jar are in [MC-26.2-API.md](MC-26.2-API.md).
+API signatures verified against the game jars (26.2, and unchanged in 26.3) are
+in [MC-26.2-API.md](MC-26.2-API.md).

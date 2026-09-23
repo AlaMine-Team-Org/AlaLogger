@@ -41,8 +41,8 @@ link and whatever it recognised, in the player's own language.
 
 ## Status
 
-Version 0.1.1 on Minecraft 26.2, for **Fabric and NeoForge**, both verified in a
-live game.
+Minecraft **26.3 and 26.2**, for **Fabric and NeoForge** — four jars from one
+source and one version number, all four verified on a running server.
 
 Paper/Folia and Velocity follow. The shared code is split so that adding one is a
 thin adapter rather than a rewrite: everything a player interacts with lives in
@@ -69,17 +69,21 @@ artifact.
 Requires JDK 25.
 
 ```bash
-./gradlew :fabric:build :neoforge:build   # both jars, in <loader>/build/libs/
-./gradlew :common:test                    # unit tests, no game needed
-./gradlew :fabric:runClient               # dev client, Fabric
-./gradlew :neoforge:runClient             # dev client, NeoForge
+./gradlew :fabric:build :neoforge:build            # both jars for Minecraft 26.3
+./gradlew :fabric:build :neoforge:build -Pmc=26.2  # the same for Minecraft 26.2
+./gradlew :common:test                             # unit tests, no game needed
+./gradlew :fabric:runClient                        # dev client, Fabric
+./gradlew :neoforge:runClient                      # dev client, NeoForge
 ```
 
-Build both. The shared modules are compiled separately by each loader, so code
-that compiles under one can fail under the other.
+Build both loaders, and both game versions. The shared modules are compiled
+separately by each loader against each Minecraft, so code that compiles under
+one can fail under another. What differs between game versions — Minecraft,
+Fabric API, the loaders — is one file per version in `versions/`; the source is
+the same.
 
 More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md); API signatures verified
-against the 26.2 jar are in [docs/MC-26.2-API.md](docs/MC-26.2-API.md).
+against the game jars are in [docs/MC-26.2-API.md](docs/MC-26.2-API.md).
 
 ## Configuration
 

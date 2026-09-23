@@ -161,6 +161,46 @@ public final class IpAddressRule extends RegexRule {
     private static final Pattern MOD_ID_LINE =
             Pattern.compile("\\s{2,}\\S.*\\s[0-9][\\w.+\\-]*\\s+\\([a-z0-9_.\\-]+\\)\\s*$");
 
+    /**
+     * What a stack frame prints in front of a module version, up to and
+     * including the {@code @}.
+     *
+     * <pre>
+     *         at TRANSFORMER/neoforge@26.2.0.67/net.neoforged.neoforge.Foo.bar(Foo.java:12)
+     * </pre>
+     *
+     * <p>That is the JDK's own format ({@code StackTraceElement#toString}: an
+     * optional class loader name and slash, then {@code module@version/}), so a
+     * NeoForge crash puts its build version on dozens of frames. The
+     * {@code -beta} guard in the pattern used to hide this: every NeoForge build a
+     * crash report had been checked against was a beta. The first stable build,
+     * 26.2.0.67, came back as {@code neoforge@***.***.***.***} on every frame.
+     *
+     * <p>Matched against the text between the start of the line and the token,
+     * with the token itself required to be followed by {@code /}. Both ends are
+     * needed: an address can follow an {@code @} ({@code root@203.0.113.7}), it
+     * cannot sit in a frame's module slot.
+     */
+    private static final Pattern STACK_FRAME_MODULE =
+            Pattern.compile("\\s*at\\s+(?:[\\w.$\\-]+/)?[\\w.$\\-]+@");
+
+    /**
+     * The loader line of a crash report's System Details section, indented by a
+     * single tab and therefore outside every mod-list guard above:
+     *
+     * <pre>
+     *     NeoForge: 26.2.0.67
+     * </pre>
+     *
+     * <p>Found by running this rule over real NeoForge 26.2 crash reports - the
+     * line came back masked in every one of them. Bounded to the whole line
+     * holding one version-shaped value after a loader name, so no other
+     * {@code key: value} row, where an address can legitimately appear, is
+     * affected.
+     */
+    private static final Pattern LOADER_DETAIL_LINE = Pattern.compile(
+            "\\s*(?:NeoForge|Forge|FML|Fabric Loader|Quilt Loader):\\s+[0-9][\\w.+\\-]*\\s*$");
+
     @Override
     public String key() {
         return "ip";
@@ -178,7 +218,42 @@ public final class IpAddressRule extends RegexRule {
 
     @Override
     protected boolean isExempt(String content, int start, String match) {
-        return isOnModListLine(content, start) || super.isExempt(content, start, match);
+        return isOnModListLine(content, start)
+                || isVersionByPosition(content, start, start + match.length())
+                || super.isExempt(content, start, match);
+    }
+
+    /**
+     * Whether the token sits where only a version can: a stack frame's module
+     * slot, or a single directory level of a path.
+     *
+     * <p>The path case is the Maven layout every launcher and NeoForge's own
+     * loader print at startup,
+     * {@code libraries/net/neoforged/neoforge/26.2.0.67/neoforge-26.2.0.67-universal.jar}:
+     * the file name is already safe (the {@code -} before the version), the
+     * directory above it is not. A URL is kept out on purpose - its host comes
+     * after {@code //}, and a UNC share after {@code \\}, so a token preceded by
+     * two separators, or by {@code :/}, is still treated as an address.
+     */
+    private static boolean isVersionByPosition(String content, int start, int end) {
+        char before = start > 0 ? content.charAt(start - 1) : '\n';
+        char after = end < content.length() ? content.charAt(end) : '\n';
+
+        if (before == '@' && after == '/') {
+            int lineStart = content.lastIndexOf('\n', start - 1) + 1;
+            return STACK_FRAME_MODULE.matcher(content).region(lineStart, start).matches();
+        }
+
+        if (isSeparator(before) && isSeparator(after)) {
+            char twoBefore = start > 1 ? content.charAt(start - 2) : '\n';
+            return !isSeparator(twoBefore) && twoBefore != ':';
+        }
+
+        return false;
+    }
+
+    private static boolean isSeparator(char c) {
+        return c == '/' || c == '\\';
     }
 
     /**
@@ -207,6 +282,10 @@ public final class IpAddressRule extends RegexRule {
         }
 
         if (matcher.usePattern(LIBRARY_LINE).lookingAt()) {
+            return true;
+        }
+
+        if (matcher.usePattern(LOADER_DETAIL_LINE).lookingAt()) {
             return true;
         }
 
