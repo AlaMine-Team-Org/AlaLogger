@@ -10,6 +10,9 @@
 [versions]
 fabric-loom = "1.17.21"
 neoforge-moddev = "2.0.147"
+# https://plugins.gradle.org/plugin/net.minecraftforge.gradle - ForgeGradle 7, the
+# version line the Forge 26.2/26.3 MDKs ask for ([7.0.17,8)). Pinned, not a range.
+forge-gradle = "7.0.40"
 
 # Bundled by Minecraft 26.2 and 26.3 — pinned to the same version so the unit tests,
 # which run without the game, cannot disagree with what ships at runtime.
@@ -26,3 +29,4 @@ junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 [plugins]
 fabric-loom = { id = "net.fabricmc.fabric-loom", version.ref = "fabric-loom" }
 neoforge-moddev = { id = "net.neoforged.moddev", version.ref = "neoforge-moddev" }
+forge-gradle = { id = "net.minecraftforge.gradle", version.ref = "forge-gradle" }

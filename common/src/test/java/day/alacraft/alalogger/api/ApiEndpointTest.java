@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * then threw on — from inside the mod's entrypoint, which meant a server that
  * would not start. The last two tests here are the ones that keep that shut.
  */
+// @implements TC-LOG-008
 class ApiEndpointTest {
 
     @Test

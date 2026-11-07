@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+// @implements TC-LOG-003
 class LogReaderTest {
 
     /** U+FFFD, what a decoder substitutes for a byte it cannot make sense of. */

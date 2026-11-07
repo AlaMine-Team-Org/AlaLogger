@@ -71,5 +71,21 @@
   "redaction.token": "oturum anahtarları",
   "redaction.secret": "anahtarlar ve parolalar",
   "redaction.seed": "dünya tohumu",
-  "redaction.memdump": "bellek dökümleri"
+  "redaction.memdump": "bellek dökümleri",
+  "client_crash.notice": "Son oyun çöktü. Kayıt paylaşılsın mı?",
+  "client_crash.toast": "Son oyun çöktü. Ala Logger çökme kaydını yükleyebilir.",
+  "client_crash.notice.hint": "Çökmenin bıraktığı dosyaları açar. Siz tıklayana kadar hiçbir şey yüklenmez.",
+  "client_crash.title": "Son oyun çöktü",
+  "client_crash.intro": "Çökme bu dosyaları bıraktı. Hata bildirimi veya destek sohbeti için kısa bir bağlantı almak üzere birini yükleyin.",
+  "client_crash.no_report": "Oyun çökme raporu olmadan kapandı. Bu, o oturumun kaydıdır.",
+  "client_crash.privacy": "Gönderimden önce IP adresleri, hesap adları ve oturum anahtarları kaldırılır.",
+  "client_crash.upload": "Yükle",
+  "client_crash.uploading": "Yükleniyor...",
+  "client_crash.copy": "Bağlantıyı kopyala",
+  "client_crash.open": "Tarayıcıda aç",
+  "client_crash.discord": "Discord için kopyala",
+  "client_crash.discord.hint": "Destek sohbeti için hazır bir mesaj kopyalar: bağlantı, sürümler ve bulunan ilk sorun.",
+  "client_crash.discord.text": "Minecraft çöktü: {url} (Minecraft {mc}, {loader}, Ala Logger {version})",
+  "client_crash.close": "Kapat",
+  "client_crash.copied": "Kopyalandı"
 }

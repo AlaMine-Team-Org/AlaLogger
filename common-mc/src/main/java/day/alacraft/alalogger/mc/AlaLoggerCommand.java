@@ -246,14 +246,27 @@ public final class AlaLoggerCommand {
                         return;
                     }
 
-                    announce(source, language, upload, service.config().broadcastToAdmins,
-                            service.config().insightsInChat);
+                    announce(source, language, upload, service.config());
                 }));
     }
 
     private static void announce(CommandSourceStack source, String language, UploadService.Upload upload,
-            boolean broadcastToAdmins, int insightLimit) {
-        MutableComponent line = ChatFormat.info(language, "upload.success")
+            Config config) {
+        source.sendSuccess(() -> successLine(language, upload), false);
+
+        // Vanilla behaviour for administrative commands: other operators see
+        // that a log left the server - each in their own language, which is why
+        // this does not go through sendSuccess(..., true). Off by config for
+        // anyone who considers that noise.
+        if (config.broadcastToAdmins) {
+            AdminBroadcast.send(source, config, recipient -> successLine(recipient, upload));
+        }
+
+        announceDetails(source, language, upload, config.insightsInChat);
+    }
+
+    private static MutableComponent successLine(String language, UploadService.Upload upload) {
+        return ChatFormat.info(language, "upload.success")
                 .append(ChatFormat.space())
                 .append(ChatFormat.link(upload.result().url()))
                 .append(ChatFormat.space())
@@ -272,12 +285,10 @@ public final class AlaLoggerCommand {
                 .append(ChatFormat.space())
                 .append(ChatFormat.button(language, "button.delete", "button.delete.hint",
                         ChatFormat.command() + " delete " + upload.result().id()));
+    }
 
-        // Vanilla behaviour for administrative commands: other operators see
-        // that a log left the server. Off by config for anyone who considers
-        // that noise.
-        source.sendSuccess(() -> line, broadcastToAdmins);
-
+    private static void announceDetails(CommandSourceStack source, String language, UploadService.Upload upload,
+            int insightLimit) {
         String removed = RedactionSummaries.describe(language, upload.redaction().matchedSummary());
 
         if (!removed.isEmpty()) {

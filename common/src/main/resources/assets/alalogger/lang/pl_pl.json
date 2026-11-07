@@ -71,5 +71,21 @@
   "redaction.token": "tokeny sesji",
   "redaction.secret": "klucze i hasła",
   "redaction.seed": "ziarno świata",
-  "redaction.memdump": "zrzuty pamięci"
+  "redaction.memdump": "zrzuty pamięci",
+  "client_crash.notice": "Ostatnia gra uległa awarii. Udostępnić log?",
+  "client_crash.toast": "Ostatnia gra uległa awarii. Ala Logger może przesłać raport.",
+  "client_crash.notice.hint": "Otwiera pliki pozostawione przez awarię. Nic nie zostanie wysłane, dopóki nie klikniesz.",
+  "client_crash.title": "Ostatnia gra uległa awarii",
+  "client_crash.intro": "Awaria pozostawiła te pliki. Prześlij jeden, aby otrzymać krótki link do zgłoszenia błędu lub czatu pomocy.",
+  "client_crash.no_report": "Gra zamknęła się bez raportu awarii. To jest log tamtej sesji.",
+  "client_crash.privacy": "Adresy IP, nazwy kont i tokeny sesji są usuwane przed wysłaniem.",
+  "client_crash.upload": "Prześlij",
+  "client_crash.uploading": "Przesyłanie...",
+  "client_crash.copy": "Kopiuj link",
+  "client_crash.open": "Otwórz w przeglądarce",
+  "client_crash.discord": "Kopiuj na Discorda",
+  "client_crash.discord.hint": "Kopiuje gotową wiadomość na czat pomocy: link, wersje i pierwszy znaleziony problem.",
+  "client_crash.discord.text": "Minecraft uległ awarii: {url} (Minecraft {mc}, {loader}, Ala Logger {version})",
+  "client_crash.close": "Zamknij",
+  "client_crash.copied": "Skopiowano"
 }

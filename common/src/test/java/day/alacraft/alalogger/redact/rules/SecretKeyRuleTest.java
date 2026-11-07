@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+// @implements TC-LOG-004
 class SecretKeyRuleTest {
 
     private final SecretKeyRule rule = new SecretKeyRule();

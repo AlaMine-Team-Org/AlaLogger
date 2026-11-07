@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+// @implements TC-LOG-005
 class JvmMemoryDumpRuleTest {
 
     private final JvmMemoryDumpRule rule = new JvmMemoryDumpRule();

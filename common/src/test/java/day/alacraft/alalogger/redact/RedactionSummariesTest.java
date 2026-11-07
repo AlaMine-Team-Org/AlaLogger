@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * player who is told "2 IP addresses, 1 account name were removed" can believe
  * the rest of what the mod says about itself.
  */
+// @implements TC-LOG-004
 class RedactionSummariesTest {
 
     private Map<String, Integer> summary(Object... pairs) {

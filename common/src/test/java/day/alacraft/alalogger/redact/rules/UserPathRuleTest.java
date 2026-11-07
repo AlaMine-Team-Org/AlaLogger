@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+// @implements TC-LOG-004
 class UserPathRuleTest {
 
     private final UserPathRule rule = new UserPathRule();

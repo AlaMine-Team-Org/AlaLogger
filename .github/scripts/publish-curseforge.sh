@@ -32,11 +32,18 @@ esac
 [ -f "$JAR" ] || { echo "::error::no such jar: $JAR"; exit 1; }
 [ -s NOTES.md ] || { echo "::error::NOTES.md is missing or empty"; exit 1; }
 
+# This file's changelog: the shared notes plus the blocks for this loader only.
+# A Fabric file must not tell its players that Forge was added.
+LOADER="$(printf '%s' "$LABEL" | tr '[:upper:]' '[:lower:]')"
+LOADER_NOTES="$(mktemp)"
+bash "$(dirname "$0")/notes-for-loader.sh" "$LOADER" NOTES.md > "$LOADER_NOTES" \
+    || { echo "::error::could not render the notes for $LABEL"; exit 1; }
+
 # The environment tags (Client/Server) became mandatory in 2026-07; without them
 # the upload is rejected as errorCode 1021. Do not add a Java version to this list
 # either - CurseForge rejects that with errorCode 1009.
 METADATA=$(jq -n \
-    --rawfile changelog NOTES.md \
+    --rawfile changelog "$LOADER_NOTES" \
     --arg displayName "Ala Logger $VERSION-mc$MC [$LABEL]" \
     --arg releaseType "$RELEASE_TYPE" \
     --argjson gameVersions "$GAME_VERSIONS" \

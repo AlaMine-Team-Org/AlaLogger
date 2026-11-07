@@ -71,5 +71,21 @@
   "redaction.token": "токенів сесії",
   "redaction.secret": "ключів і паролів",
   "redaction.seed": "сід світу",
-  "redaction.memdump": "дампів пам’яті"
+  "redaction.memdump": "дампів пам’яті",
+  "client_crash.notice": "Минула гра впала. Поділитися логом?",
+  "client_crash.toast": "Минула гра впала. Ala Logger може завантажити краш.",
+  "client_crash.notice.hint": "Відкриває файли, які залишив краш. Нічого не завантажується, доки ви не натиснете кнопку.",
+  "client_crash.title": "Минула гра впала",
+  "client_crash.intro": "Краш залишив ці файли. Завантажте будь-який, щоб отримати коротке посилання для баг-репорту або чату підтримки.",
+  "client_crash.no_report": "Гра закрилася без краш-звіту. Це лог тієї сесії.",
+  "client_crash.privacy": "IP-адреси, імена облікових записів і токени сесії видаляються до надсилання.",
+  "client_crash.upload": "Завантажити",
+  "client_crash.uploading": "Завантажую...",
+  "client_crash.copy": "Копіювати посилання",
+  "client_crash.open": "Відкрити в браузері",
+  "client_crash.discord": "Скопіювати для Discord",
+  "client_crash.discord.hint": "Скопіювати готове повідомлення для чату підтримки: посилання, версії та першу знайдену проблему.",
+  "client_crash.discord.text": "Minecraft впав: {url} (Minecraft {mc}, {loader}, Ala Logger {version})",
+  "client_crash.close": "Закрити",
+  "client_crash.copied": "Скопійовано"
 }

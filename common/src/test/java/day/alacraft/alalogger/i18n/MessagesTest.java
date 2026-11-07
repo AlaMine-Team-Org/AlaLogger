@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * line — which, for error messages, is precisely when they are already having a
  * bad day.
  */
+// @implements TC-LOG-011
 class MessagesTest {
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{([a-zA-Z_]+)}");

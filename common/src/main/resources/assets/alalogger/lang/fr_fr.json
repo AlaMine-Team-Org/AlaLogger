@@ -71,5 +71,21 @@
   "redaction.token": "jetons de session",
   "redaction.secret": "clés et mots de passe",
   "redaction.seed": "seed du monde",
-  "redaction.memdump": "vidages mémoire"
+  "redaction.memdump": "vidages mémoire",
+  "client_crash.notice": "La dernière partie a planté. Partager le log ?",
+  "client_crash.toast": "La dernière partie a planté. Ala Logger peut envoyer le crash.",
+  "client_crash.notice.hint": "Ouvre les fichiers laissés par le crash. Rien n'est envoyé tant que vous ne cliquez pas.",
+  "client_crash.title": "La dernière partie a planté",
+  "client_crash.intro": "Le crash a laissé ces fichiers. Envoyez-en un pour obtenir un lien court pour un rapport de bug ou un chat d'assistance.",
+  "client_crash.no_report": "Le jeu s'est fermé sans rapport de crash. Voici le log de cette session.",
+  "client_crash.privacy": "Les adresses IP, les noms de compte et les jetons de session sont supprimés avant l'envoi.",
+  "client_crash.upload": "Envoyer",
+  "client_crash.uploading": "Envoi...",
+  "client_crash.copy": "Copier le lien",
+  "client_crash.open": "Ouvrir dans le navigateur",
+  "client_crash.discord": "Copier pour Discord",
+  "client_crash.discord.hint": "Copier un message prêt pour un chat d'assistance : le lien, les versions et le premier problème trouvé.",
+  "client_crash.discord.text": "Minecraft a planté : {url} (Minecraft {mc}, {loader}, Ala Logger {version})",
+  "client_crash.close": "Fermer",
+  "client_crash.copied": "Copié"
 }

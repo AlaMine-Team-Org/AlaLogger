@@ -7,7 +7,7 @@
 # One tag releases every supported Minecraft version at once. The versions are
 # the files in versions/ - one per game version, same source, same mod version -
 # and each is built, tested and published in its own matrix job, so a release is
-# 2 loaders x N game versions files under ONE version number, ONE GitHub Release
+# 3 loaders x N game versions files under ONE version number, ONE GitHub Release
 # and ONE set of notes. There is no second tag to forget and no second changelog
 # to drift.
 #
@@ -153,25 +153,27 @@ jobs:
           MC: ${{ matrix.mc }}
         run: ./gradlew :common:test -Pmc="$MC" --no-daemon
 
-      - name: Build both loaders
+      - name: Build all loaders
         env:
           MC: ${{ matrix.mc }}
-        run: ./gradlew :fabric:build :neoforge:build -Pmc="$MC" --no-daemon
+        run: ./gradlew :fabric:build :neoforge:build :forge:build -Pmc="$MC" --no-daemon
 
       # The jars are what people download; checking them here beats finding out
       # from a bug report that the metadata inside one was wrong. Each check also
-      # refuses a jar carrying the OTHER loader's metadata, or declaring another
+      # refuses a jar carrying ANOTHER loader's metadata, or declaring another
       # Minecraft version than the one in its name.
-      - name: Verify both artifacts
+      - name: Verify every artifact
         env:
           VERSION: ${{ needs.versions.outputs.version }}
           MC: ${{ matrix.mc }}
         run: |
           bash .github/scripts/verify-artifact.sh "$VERSION" . fabric "$MC"
           bash .github/scripts/verify-artifact.sh "$VERSION" . neoforge "$MC"
+          bash .github/scripts/verify-artifact.sh "$VERSION" . forge "$MC"
           mkdir -p out
           cp "fabric/build/libs/alalogger-fabric-$MC-$VERSION.jar" out/
           cp "neoforge/build/libs/alalogger-neoforge-$MC-$VERSION.jar" out/
+          cp "forge/build/libs/alalogger-forge-$MC-$VERSION.jar" out/
 
       - uses: actions/upload-artifact@v4
         with:
@@ -265,13 +267,13 @@ jobs:
           merge-multiple: true
 
       # Every jar the build jobs produced, and exactly as many as there should
-      # be: two loaders per Minecraft version. Fewer means a matrix leg lost its
+      # be: three loaders per Minecraft version. Fewer means a matrix leg lost its
       # artifact; the release would be missing a version nobody would notice.
       - name: Count the jars
         env:
           LIST: ${{ needs.versions.outputs.list }}
         run: |
-          want=$(( $(printf '%s' "$LIST" | jq 'length') * 2 ))
+          want=$(( $(printf '%s' "$LIST" | jq 'length') * 3 ))
           have=$(ls jars/*.jar | wc -l)
           ls -la jars
           [ "$have" -eq "$want" ] || { echo "::error::expected $want jars, found $have"; exit 1; }
@@ -337,13 +339,14 @@ jobs:
         run: |
           echo "fabric_jar=jars/alalogger-fabric-$MC-$VERSION.jar" >> "$GITHUB_OUTPUT"
           echo "neoforge_jar=jars/alalogger-neoforge-$MC-$VERSION.jar" >> "$GITHUB_OUTPUT"
+          echo "forge_jar=jars/alalogger-forge-$MC-$VERSION.jar" >> "$GITHUB_OUTPUT"
           NEOFORGE=$(grep '^neoforge_version=' "versions/$MC.properties" | cut -d= -f2 | tr -d '[:space:]')
           case "$NEOFORGE" in
             *-beta*) NEOFORGE_TYPE=beta ;;
             *)       NEOFORGE_TYPE=release ;;
           esac
           echo "neoforge_type=$NEOFORGE_TYPE" >> "$GITHUB_OUTPUT"
-          echo "Minecraft $MC: Fabric release, NeoForge $NEOFORGE ($NEOFORGE_TYPE)"
+          echo "Minecraft $MC: Fabric release, NeoForge $NEOFORGE ($NEOFORGE_TYPE), Forge release"
           ls -la jars
 
       # Re-running a failed release must not create a second copy of a version
@@ -358,7 +361,7 @@ jobs:
             --connect-timeout 20 --max-time 180 \
             "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT/version" \
             -H "User-Agent: AlaMine-Team-Org/AlaLogger-release/1.0")
-          for loader in fabric neoforge; do
+          for loader in fabric neoforge forge; do
             exists=$(printf '%s' "$versions" | jq -r --arg v "$VERSION-mc$MC+$loader" \
               'any(.[]; .version_number == $v)')
             echo "${loader}_exists=$exists" >> "$GITHUB_OUTPUT"
@@ -386,6 +389,13 @@ jobs:
           RELEASE_TYPE: ${{ steps.files.outputs.neoforge_type }}
         run: bash .github/scripts/publish-modrinth.sh neoforge
 
+      - name: Publish Forge to Modrinth
+        if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_MODRINTH != 'true' && steps.modrinth_check.outputs.forge_exists != 'true'
+        env:
+          JAR: ${{ steps.files.outputs.forge_jar }}
+          RELEASE_TYPE: release
+        run: bash .github/scripts/publish-modrinth.sh forge
+
       # CurseForge identifies game versions, loaders and environments by numeric
       # id, and rejects an upload that names none of them.
       #
@@ -395,8 +405,10 @@ jobs:
       # 1009, so that type is excluded and exactly one match is required. The one
       # id known to be right is also held against the lookup, so a change in how
       # the API answers is caught on a version where the answer is known.
-      # Fabric and the environments are fixed ids; NeoForge is resolved by name
-      # because its id has moved before. Everything is verified against the API
+      # Fabric and the environments are fixed ids; NeoForge and Forge are
+      # resolved by name because the NeoForge id has moved before. Both names
+      # are matched exactly and must match once: "Forge" is a substring of
+      # "NeoForge", and a loose match would label one loader as the other. Everything is verified against the API
       # before any upload, and also in a dry run, where it is the whole point.
       - name: Resolve the CurseForge version ids
         id: cf_ids
@@ -449,10 +461,20 @@ jobs:
             echo "  NeoForge resolved to id $NEOFORGE_ID"
           fi
 
+          forge=$(jq -c '[.[] | select(.name == "Forge") | .id]' cf_versions.json)
+          if [ "$(printf '%s' "$forge" | jq 'length')" -ne 1 ]; then
+            echo "::error::CurseForge has $forge for the name 'Forge' - expected exactly one."
+            fail=1
+          else
+            FORGE_ID=$(printf '%s' "$forge" | jq '.[0]')
+            echo "  Forge resolved to id $FORGE_ID"
+          fi
+
           [ "$fail" -eq 0 ] || exit 1
 
           echo "fabric_ids=[$MC_ID, $FABRIC_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
           echo "neoforge_ids=[$MC_ID, $NEOFORGE_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
+          echo "forge_ids=[$MC_ID, $FORGE_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
 
       # Re-running a tag must not upload a second copy of a file CurseForge
       # already has: the upload API can neither list files nor remove them, so a
@@ -472,6 +494,7 @@ jobs:
         env:
           FABRIC_JAR: ${{ steps.files.outputs.fabric_jar }}
           NEOFORGE_JAR: ${{ steps.files.outputs.neoforge_jar }}
+          FORGE_JAR: ${{ steps.files.outputs.forge_jar }}
         run: |
           # To a file, never into a variable: the index lists every file the
           # project ever published, and past 128 KiB a single argument kills the
@@ -489,15 +512,19 @@ jobs:
             exit 1
           fi
 
-          for loader in fabric neoforge; do
-            if [ "$loader" = fabric ]; then jar="$FABRIC_JAR"; else jar="$NEOFORGE_JAR"; fi
+          for loader in fabric neoforge forge; do
+            case "$loader" in
+              fabric)   jar="$FABRIC_JAR" ;;
+              neoforge) jar="$NEOFORGE_JAR" ;;
+              forge)    jar="$FORGE_JAR" ;;
+            esac
             name="$(basename "$jar")"
             exists=$(jq -r --arg n "$name" 'any(.files[]; .name == $n)' cfwidget.json)
             echo "${loader}_exists=$exists" >> "$GITHUB_OUTPUT"
             echo "CurseForge $name already published: $exists"
           done
 
-      # Two uploads as SEPARATE steps, so a partial failure is unambiguous in the
+      # One upload per loader, as SEPARATE steps, so a partial failure is unambiguous in the
       # log and only the failed one has to be re-run.
       - name: Publish Fabric to CurseForge
         if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_CURSEFORGE != 'true' && steps.curseforge_check.outputs.fabric_exists != 'true'
@@ -515,4 +542,13 @@ jobs:
           GAME_VERSIONS: ${{ steps.cf_ids.outputs.neoforge_ids }}
           LABEL: NeoForge
           RELEASE_TYPE: ${{ steps.files.outputs.neoforge_type }}
+        run: bash .github/scripts/publish-curseforge.sh
+
+      - name: Publish Forge to CurseForge
+        if: startsWith(github.ref, 'refs/tags/') && inputs.dry_run != true && env.SKIP_CURSEFORGE != 'true' && steps.curseforge_check.outputs.forge_exists != 'true'
+        env:
+          JAR: ${{ steps.files.outputs.forge_jar }}
+          GAME_VERSIONS: ${{ steps.cf_ids.outputs.forge_ids }}
+          LABEL: Forge
+          RELEASE_TYPE: release
         run: bash .github/scripts/publish-curseforge.sh

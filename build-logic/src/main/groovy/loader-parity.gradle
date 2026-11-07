@@ -1,6 +1,6 @@
-// Fails the build when the two loader entrypoints stop being mirror images.
+// Fails the build when the loader entrypoints stop being mirror images.
 //
-// The mod is one body of logic compiled into a Fabric jar and a NeoForge jar. The
+// The mod is one body of logic compiled into a Fabric, a NeoForge and a Forge jar. The
 // only thing standing between that and two mods sharing a name is a rule nobody
 // can see: a loader module holds an adapter, never behaviour. Rules nobody can
 // see are followed until the day they are not, and the failure is silent — the
@@ -23,14 +23,30 @@
 def entrypoints = [
         fabric  : 'fabric/src/main/java/day/alacraft/alalogger/fabric/AlaLoggerFabric.java',
         neoforge: 'neoforge/src/main/java/day/alacraft/alalogger/neoforge/AlaLoggerNeoForge.java',
+        forge   : 'forge/src/main/java/day/alacraft/alalogger/forge/AlaLoggerForge.java',
 ]
 
-// Calls into shared code that both entrypoints must make, exactly once each.
+// Calls into shared code that every entrypoint must make, exactly once each.
 def sharedSteps = [
         'AlaLoggerBootstrap.start(',
         'AlaLoggerCommand.register(',
-        '.serverStarted()',
+        '.serverStarted(',
         '.serverStopped(',
+]
+
+// The client side of the same rule: each loader's client entrypoint (the crash
+// offer on the title screen) makes the same two calls into common-mc and nothing
+// else. Compared as their own set, because a client class and a main class are
+// not supposed to look alike.
+def clientEntrypoints = [
+        fabric  : 'fabric/src/main/java/day/alacraft/alalogger/fabric/AlaLoggerFabricClient.java',
+        neoforge: 'neoforge/src/main/java/day/alacraft/alalogger/neoforge/AlaLoggerNeoForgeClient.java',
+        forge   : 'forge/src/main/java/day/alacraft/alalogger/forge/AlaLoggerForgeClient.java',
+]
+
+def clientSteps = [
+        'CrashOfferClient.init(',
+        'CrashOfferClient.decorate(',
 ]
 
 // Work that belongs in `common`. Present in a loader module, each of these means
@@ -48,10 +64,12 @@ def forbidden = [
 
 tasks.register('checkLoaderParity') {
     group = 'verification'
-    description = 'Fails when the Fabric and NeoForge entrypoints have drifted apart.'
+    description = 'Fails when the Fabric, NeoForge and Forge entrypoints have drifted apart.'
 
     def files = entrypoints.collectEntries { name, path -> [(name): rootProject.file(path)] }
+    def clientFiles = clientEntrypoints.collectEntries { name, path -> [(name): rootProject.file(path)] }
     inputs.files(files.values()).withPropertyName('entrypoints')
+    inputs.files(clientFiles.values()).withPropertyName('clientEntrypoints')
 
     doLast {
         // Comments are removed first. Javadoc on these classes names the very
@@ -76,9 +94,9 @@ tasks.register('checkLoaderParity') {
             body.readLines().count { it ==~ /^ {4}\}\s*$/ }
         }
 
-        def stepOrder = { String body ->
+        def stepOrder = { String body, List<String> steps = sharedSteps ->
             def hits = []
-            sharedSteps.each { step ->
+            steps.each { step ->
                 for (int at = body.indexOf(step); at >= 0; at = body.indexOf(step, at + step.length())) {
                     hits << [at: at, step: step]
                 }
@@ -89,7 +107,7 @@ tasks.register('checkLoaderParity') {
         // A search token ends in an open bracket, which reads badly in a message.
         def readable = { String token -> token.endsWith('(') ? token + '...)' : token }
 
-        def analyse = { Map<String, String> sources ->
+        def analyse = { Map<String, String> sources, List<String> steps = sharedSteps ->
             def problems = []
             def bodies = sources.collectEntries { name, java -> [(name): strip(java)] }
 
@@ -98,9 +116,9 @@ tasks.register('checkLoaderParity') {
                 // which counts overlapping occurrences. The two agree for every
                 // token here and would stop agreeing the day one of them can
                 // overlap itself.
-                def order = stepOrder(body)
+                def order = stepOrder(body, steps)
 
-                sharedSteps.each { step ->
+                steps.each { step ->
                     int seen = order.count(step)
                     if (seen != 1) {
                         problems << "${name}: calls ${readable(step)} ${seen} time(s), expected exactly one"
@@ -130,9 +148,9 @@ tasks.register('checkLoaderParity') {
             def reference = names.first()
 
             names.tail().each { name ->
-                if (stepOrder(bodies[reference]) != stepOrder(bodies[name])) {
+                if (stepOrder(bodies[reference], steps) != stepOrder(bodies[name], steps)) {
                     problems << "${reference} and ${name} perform the shared steps in a different order: " +
-                            "${stepOrder(bodies[reference])} vs ${stepOrder(bodies[name])}"
+                            "${stepOrder(bodies[reference], steps)} vs ${stepOrder(bodies[name], steps)}"
                 }
                 if (methodCount(bodies[reference]) != methodCount(bodies[name])) {
                     problems << "${reference} declares ${methodCount(bodies[reference])} method(s) and " +
@@ -161,7 +179,7 @@ tasks.register('checkLoaderParity') {
                 public void start() {
                     var mod = AlaLoggerBootstrap.start(platform());
                     register(d -> AlaLoggerCommand.register(d, mod.service()));
-                    onStarted(s -> mod.serverStarted());
+                    onStarted(s -> mod.serverStarted(s.isDedicated()));
                     onStopped(s -> mod.serverStopped(s.isDedicated()));
                 }
                 private static String version() {
@@ -192,9 +210,9 @@ tasks.register('checkLoaderParity') {
         expect('the same calls in a different order', true, [
                 a: source('A'),
                 b: source('B')
-                        .replace('onStarted(s -> mod.serverStarted());', '@@HOLD@@')
+                        .replace('onStarted(s -> mod.serverStarted(s.isDedicated()));', '@@HOLD@@')
                         .replace('onStopped(s -> mod.serverStopped(s.isDedicated()));',
-                                'onStarted(s -> mod.serverStarted());')
+                                'onStarted(s -> mod.serverStarted(s.isDedicated()));')
                         .replace('@@HOLD@@', 'onStopped(s -> mod.serverStopped(s.isDedicated()));')])
 
         expect('a helper added to one side only', true, [
@@ -216,9 +234,44 @@ tasks.register('checkLoaderParity') {
                         '                // Config.load( belongs in common, which is why it is not here.\n'
                                 + '                public void start() {')])
 
+        // A third entrypoint is compared against the first like the second is.
+        // Without this pair, a loop that only ever looked at the second name
+        // would pass every two-entry case above and never read the third file.
+        expect('a third entrypoint that lost a call', true, [
+                a: source('A'),
+                b: source('B'),
+                c: source('C').replace('onStarted(s -> mod.serverStarted(s.isDedicated()));', '')])
+
+        // The client profile runs the same analysis with its own steps, so it
+        // gets its own proof that it can fail.
+        def client = { String name -> """
+            public class Client${name} {
+                public void start() {
+                    CrashOfferClient.init();
+                    onScreen((client, screen) -> CrashOfferClient.decorate(screen, add));
+                }
+            }
+            """.stripIndent() }
+
+        def expectClient = { String label, boolean shouldFail, Map<String, String> set ->
+            boolean failed = !analyse(set, clientSteps).isEmpty()
+            if (failed != shouldFail) {
+                throw new GradleException("checkLoaderParity is broken: the client profile " +
+                        (shouldFail ? "accepts" : "rejects") + " ${label}.")
+            }
+        }
+
+        expectClient('three identical client entrypoints', false, [a: client('A'), b: client('B'), c: client('C')])
+        expectClient('a client entrypoint that never decorates the screen', true, [
+                a: client('A'),
+                b: client('B').replace('onScreen((client, screen) -> CrashOfferClient.decorate(screen, add));', '')])
+        expectClient('a client entrypoint that renders text itself', true, [
+                a: client('A'),
+                b: client('B').replace('CrashOfferClient.init();', 'CrashOfferClient.init(); Messages.get(lang, key);')])
+
         // ---- the real thing ----
 
-        files.each { name, file ->
+        (files + clientFiles.collectEntries { name, file -> [("${name}Client".toString()): file] }).each { name, file ->
             if (!file.isFile()) {
                 throw new GradleException("checkLoaderParity: ${file} does not exist. " +
                         'If an entrypoint moved, update build-logic/src/main/groovy/loader-parity.gradle.')
@@ -226,15 +279,17 @@ tasks.register('checkLoaderParity') {
         }
 
         def problems = analyse(files.collectEntries { name, file -> [(name): file.getText('UTF-8')] })
+        problems += analyse(clientFiles.collectEntries { name, file -> [("${name} client".toString()): file.getText('UTF-8')] },
+                clientSteps)
 
         if (!problems.isEmpty()) {
             throw new GradleException("The loader entrypoints have drifted apart:\n  " +
                     problems.join('\n  ') +
-                    '\n\nBoth loaders must do the same things in the same order, and neither may hold ' +
+                    '\n\nEvery loader must do the same things in the same order, and none may hold ' +
                     'logic of its own. Move the difference into common/AlaLoggerBootstrap.')
         }
 
-        logger.lifecycle('Loader parity: {} and {} still mirror each other.',
-                *entrypoints.keySet().toList())
+        logger.lifecycle('Loader parity: {} still mirror each other, and so do their client entrypoints.',
+                entrypoints.keySet().join(', '))
     }
 }

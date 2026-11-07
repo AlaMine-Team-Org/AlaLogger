@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * degrades quadratically does not come in at six seconds instead of four — it
  * comes in at several minutes, or never.
  */
+// @implements TC-LOG-012
 class RedactionPerformanceTest {
 
     private static final int TARGET_BYTES = 8 * 1024 * 1024;

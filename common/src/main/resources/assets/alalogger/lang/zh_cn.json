@@ -71,5 +71,21 @@
   "redaction.token": "会话令牌",
   "redaction.secret": "密钥和密码",
   "redaction.seed": "世界种子",
-  "redaction.memdump": "内存转储"
+  "redaction.memdump": "内存转储",
+  "client_crash.notice": "上次游戏崩溃了。要分享日志吗？",
+  "client_crash.toast": "上次游戏崩溃了。Ala Logger 可以为你上传崩溃信息。",
+  "client_crash.notice.hint": "打开崩溃留下的文件。在你点击之前不会上传任何内容。",
+  "client_crash.title": "上次游戏崩溃了",
+  "client_crash.intro": "崩溃留下了这些文件。上传其中一个即可获得用于错误报告或支持聊天的短链接。",
+  "client_crash.no_report": "游戏在没有崩溃报告的情况下关闭。这是该会话的日志。",
+  "client_crash.privacy": "发送前会移除 IP 地址、账户名和会话令牌。",
+  "client_crash.upload": "上传",
+  "client_crash.uploading": "正在上传...",
+  "client_crash.copy": "复制链接",
+  "client_crash.open": "在浏览器中打开",
+  "client_crash.discord": "复制到 Discord",
+  "client_crash.discord.hint": "复制一条可直接发到支持聊天的消息：链接、版本和发现的第一个问题。",
+  "client_crash.discord.text": "Minecraft 崩溃了：{url}（Minecraft {mc}，{loader}，Ala Logger {version}）",
+  "client_crash.close": "关闭",
+  "client_crash.copied": "已复制"
 }

@@ -71,5 +71,21 @@
   "redaction.token": "件のセッショントークン",
   "redaction.secret": "件のキーとパスワード",
   "redaction.seed": "件のワールドシード",
-  "redaction.memdump": "件のメモリダンプ"
+  "redaction.memdump": "件のメモリダンプ",
+  "client_crash.notice": "前回のゲームがクラッシュしました。ログを共有しますか？",
+  "client_crash.toast": "前回のゲームがクラッシュしました。Ala Logger でクラッシュをアップロードできます。",
+  "client_crash.notice.hint": "クラッシュが残したファイルを開きます。クリックするまで何もアップロードされません。",
+  "client_crash.title": "前回のゲームがクラッシュしました",
+  "client_crash.intro": "クラッシュにより次のファイルが残りました。アップロードすると、バグ報告やサポートチャット用の短いリンクを取得できます。",
+  "client_crash.no_report": "クラッシュレポートなしでゲームが終了しました。これはそのセッションのログです。",
+  "client_crash.privacy": "送信前に IP アドレス、アカウント名、セッショントークンは削除されます。",
+  "client_crash.upload": "アップロード",
+  "client_crash.uploading": "アップロード中...",
+  "client_crash.copy": "リンクをコピー",
+  "client_crash.open": "ブラウザで開く",
+  "client_crash.discord": "Discord 用にコピー",
+  "client_crash.discord.hint": "サポートチャット用のメッセージをコピーします：リンク、バージョン、最初に見つかった問題。",
+  "client_crash.discord.text": "Minecraft がクラッシュしました: {url} (Minecraft {mc}, {loader}, Ala Logger {version})",
+  "client_crash.close": "閉じる",
+  "client_crash.copied": "コピーしました"
 }

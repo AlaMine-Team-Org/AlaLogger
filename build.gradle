@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.fabric.loom) apply false
     // https://projects.neoforged.net/neoforged/moddevgradle
     alias(libs.plugins.neoforge.moddev) apply false
+    // https://plugins.gradle.org/plugin/net.minecraftforge.gradle
+    alias(libs.plugins.forge.gradle) apply false
     // Registers checkLoaderParity, which every loader module's `check` depends on.
     // It lives on the root because it compares two modules against each other and
     // therefore belongs to neither.

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+// @implements TC-LOG-004
 class AuthTokenRuleTest {
 
     /** Shaped like a real Microsoft session token: header.payload.signature. */

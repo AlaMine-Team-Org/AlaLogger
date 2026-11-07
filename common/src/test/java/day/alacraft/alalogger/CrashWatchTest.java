@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * itself, or that greets a fresh install with a year of history, gets muted by
  * its owner and then never helps again.
  */
+// @implements TC-LOG-010
 class CrashWatchTest {
 
     private CrashWatch watch(Path game, Path marker) {

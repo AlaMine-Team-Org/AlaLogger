@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+// @implements TC-LOG-001
 class LogFilesTest {
 
     @TempDir
@@ -216,6 +217,7 @@ class LogFilesTest {
         assertEquals(LogFileType.LOG, found.type());
     }
 
+    // @implements TC-LOG-002
     @Test
     @DisplayName("a traversing argument is refused - the name comes from a game command")
     void refusesPathTraversal() throws IOException {
@@ -232,6 +234,7 @@ class LogFilesTest {
         assertTrue(files.find(root.resolve("secret.log").toString()).isEmpty());
     }
 
+    // @implements TC-LOG-002
     @Test
     @DisplayName("a file one level down is refused - only the directories themselves are allowed")
     void refusesSubdirectories() throws IOException {
@@ -244,6 +247,7 @@ class LogFilesTest {
         assertTrue(files.list().isEmpty());
     }
 
+    // @implements TC-LOG-002
     @Test
     @DisplayName("a symlink planted in logs/ is refused - the target is resolved, not just the parent")
     void refusesEscapingSymlinks() throws IOException {
@@ -263,6 +267,7 @@ class LogFilesTest {
         assertTrue(files.list().isEmpty());
     }
 
+    // @implements TC-LOG-002
     @Test
     @DisplayName("a symlink inside the allowed directory is fine - that is not an escape")
     void allowsSymlinksThatStayInside() throws IOException {
@@ -280,6 +285,7 @@ class LogFilesTest {
         assertEquals(1, files().list().size());
     }
 
+    // @implements TC-LOG-002
     @Test
     void refusesNamesThatAreNotLogs() throws IOException {
         write(logs, "options.json", Instant.now());
@@ -290,6 +296,7 @@ class LogFilesTest {
         assertTrue(files().find(null).isEmpty());
     }
 
+    // @implements TC-LOG-002
     @Test
     @DisplayName("a directory named like a log is not a file")
     void refusesDirectories() throws IOException {
@@ -372,6 +379,32 @@ class LogFilesTest {
         assertEquals(1, found.size(), found.toString());
         assertEquals("jvm_10280.log", found.get(0).name());
         assertEquals(LogFileType.JVM_CRASH, found.get(0).type());
+    }
+
+    @Test
+    @DisplayName("a custom -XX:ErrorFile name inside logs/ is typed as a JVM crash and read from the head")
+    void typesACustomNamedErrorFileInsideLogs() throws IOException {
+        write(logs, "mycrash_4242.log", Instant.now());
+        write(logs, "latest.log", Instant.now().minusSeconds(60));
+
+        LogFiles files = new LogFiles(game, List.of(workingDirectory), logs.resolve("mycrash_%p.log"));
+
+        LogFile crash = files.find("mycrash_4242.log").orElseThrow();
+        assertEquals(LogFileType.JVM_CRASH, crash.type());
+        assertEquals(ReadMode.HEAD, crash.readMode());
+
+        LogFile latest = files.find("latest.log").orElseThrow();
+        assertEquals(LogFileType.LOG, latest.type(), "ordinary logs next to it stay ordinary");
+    }
+
+    @Test
+    @DisplayName("an ErrorFile name that would match every log never retypes latest.log")
+    void aTooWideErrorFileTemplateDoesNotRetypeLogs() throws IOException {
+        write(logs, "latest.log", Instant.now());
+
+        LogFiles files = new LogFiles(game, List.of(workingDirectory), logs.resolve("%t.log"));
+
+        assertEquals(LogFileType.LOG, files.find("latest.log").orElseThrow().type());
     }
 
     @Test

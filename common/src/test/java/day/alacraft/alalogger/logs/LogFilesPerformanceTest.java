@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * holds tens of thousands of files. Measured at ten seconds for a single log.
  * Checking the name first makes the irrelevant files free.
  */
+// @implements TC-LOG-012
 class LogFilesPerformanceTest {
 
     /** Comfortably under a tick, and two orders of magnitude below what it was. */

@@ -38,14 +38,16 @@ includeBuild('build-logic')
 //   common-mc  the loader-neutral Minecraft layer: the Brigadier command tree
 //              and chat components. Compiled against NeoForm, so one command
 //              tree serves every loader instead of one copy per loader.
-//   fabric     the entrypoint and the loader-specific hooks. Deliberately thin.
+//   fabric, neoforge, forge
+//              the entrypoints and the loader-specific hooks. Deliberately thin.
 //
-// NeoForge, Paper/Folia and Velocity modules slot in beside `fabric` without
-// touching the two shared ones — that is the whole point of the split.
+// Further platforms slot in beside them without touching the two shared
+// modules — that is the whole point of the split.
 include('common')
 include('common-mc')
 include('fabric')
 include('neoforge')
+include('forge')
 
 // The Minecraft version this build targets: versions/<mc>.properties, chosen by
 // `mc` (gradle.properties holds the default, `-Pmc=26.2` overrides it). Loaded
@@ -73,7 +75,7 @@ def mcProps = new Properties()
 versionFile.withInputStream { mcProps.load(it) }
 
 def required = ['minecraft_version', 'minecraft_version_range', 'neo_form_version',
-                'fabric_version', 'fabric_loader_version', 'neoforge_version']
+                'fabric_version', 'fabric_loader_version', 'neoforge_version', 'forge_version', 'forge_pack_format']
 def missing = required.findAll { !mcProps.getProperty(it) }
 if (missing) {
     throw new GradleException("versions/${mc}.properties is missing: ${missing.join(', ')}")

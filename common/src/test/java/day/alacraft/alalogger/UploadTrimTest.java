@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * is worth a test rather than an assumption: a running server's log hides its
  * error at the bottom, and a crash report states its cause at the top.
  */
+// @implements TC-LOG-003
 class UploadTrimTest {
 
     private String log(int lines) {

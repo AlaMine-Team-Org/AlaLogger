@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * here, so this reads its source. Weaker than calling the code, and the
  * strongest check available on this side of the loader boundary.
  */
+// @implements TC-LOG-011
 class CommandMessageKeysTest {
 
     /** The command module, relative to this module's directory. */

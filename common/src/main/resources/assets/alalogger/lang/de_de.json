@@ -71,5 +71,21 @@
   "redaction.token": "Sitzungstokens",
   "redaction.secret": "Schlüssel und Passwörter",
   "redaction.seed": "Welt-Seed",
-  "redaction.memdump": "Speicherauszüge"
+  "redaction.memdump": "Speicherauszüge",
+  "client_crash.notice": "Das letzte Spiel ist abgestürzt. Log teilen?",
+  "client_crash.toast": "Das letzte Spiel ist abgestürzt. Ala Logger kann den Absturz hochladen.",
+  "client_crash.notice.hint": "Öffnet die Dateien, die der Absturz hinterlassen hat. Nichts wird hochgeladen, bevor du klickst.",
+  "client_crash.title": "Das letzte Spiel ist abgestürzt",
+  "client_crash.intro": "Der Absturz hat diese Dateien hinterlassen. Lade eine hoch, um einen kurzen Link für einen Fehlerbericht oder den Support-Chat zu bekommen.",
+  "client_crash.no_report": "Das Spiel wurde ohne Absturzbericht beendet. Das ist das Log dieser Sitzung.",
+  "client_crash.privacy": "IP-Adressen, Kontonamen und Sitzungstoken werden vor dem Senden entfernt.",
+  "client_crash.upload": "Hochladen",
+  "client_crash.uploading": "Lade hoch...",
+  "client_crash.copy": "Link kopieren",
+  "client_crash.open": "Im Browser öffnen",
+  "client_crash.discord": "Für Discord kopieren",
+  "client_crash.discord.hint": "Eine fertige Nachricht für den Support-Chat kopieren: Link, Versionen und das erste gefundene Problem.",
+  "client_crash.discord.text": "Minecraft ist abgestürzt: {url} (Minecraft {mc}, {loader}, Ala Logger {version})",
+  "client_crash.close": "Schließen",
+  "client_crash.copied": "Kopiert"
 }

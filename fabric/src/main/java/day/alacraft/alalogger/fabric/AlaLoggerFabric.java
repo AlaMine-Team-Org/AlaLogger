@@ -33,7 +33,7 @@ public class AlaLoggerFabric implements ModInitializer {
         CommandRegistrationCallback.EVENT.register(
                 (dispatcher, registryAccess, environment) -> AlaLoggerCommand.register(dispatcher, mod.service()));
 
-        ServerLifecycleEvents.SERVER_STARTED.register(server -> mod.serverStarted());
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> mod.serverStarted(server.isDedicatedServer()));
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> mod.serverStopped(server.isDedicatedServer()));
     }
 

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+// @implements TC-LOG-004
 class EmailRuleTest {
 
     private final EmailRule rule = new EmailRule();
@@ -38,5 +39,26 @@ class EmailRuleTest {
                 "\tat java.base@25.0.2/java.lang.Thread.run(Thread.java:1583)");
 
         assertEquals(log, redact(log));
+    }
+
+    @Test
+    void keepsAModuleVersionThatEndsInLetters() {
+        // Verbatim from a real Forge 26.3 debug.log. Netty versions end in
+        // ".Final", so the domain-ends-in-letters guard above does not help and
+        // every netty frame came back as "[email-removed]".
+        String log = String.join("\n",
+                "\tat SECURE-BOOTSTRAP/io.netty.common@4.2.16.Final/io.netty.util.internal.CleanerJava9.<clinit>(CleanerJava9.java:70) ~[netty-common-4.2.16.Final.jar!/:4.2.16.Final]",
+                "\tat io.netty.transport@4.2.16.Final/io.netty.channel.Foo.bar(Foo.java:1)");
+
+        assertEquals(log, redact(log));
+    }
+
+    @Test
+    void stillMasksAnAddressOutsideTheModuleSlotOfAFrame() {
+        // The exemption needs both ends: a frame prefix before and "/" after.
+        assertEquals("Contact [email-removed]/support for help",
+                redact("Contact steve.smith@gmail.com/support for help"));
+        assertEquals("\tat [email-removed] (mail)",
+                redact("\tat steve.smith@gmail.com (mail)"));
     }
 }

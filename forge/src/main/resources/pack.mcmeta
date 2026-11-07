@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "${mod_id} resources",
+    "min_format": ${forge_pack_format},
+    "max_format": ${forge_pack_format}
+  }
+}

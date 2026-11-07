@@ -5,8 +5,8 @@ Requires **JDK 25** — Minecraft 26.x will not start on anything older.
 ## Build
 
 ```bash
-./gradlew :fabric:build :neoforge:build   # jars in <loader>/build/libs/
-./gradlew :common:test                    # unit tests, no game required
+./gradlew :fabric:build :neoforge:build :forge:build   # jars in <loader>/build/libs/
+./gradlew :common:test                                  # unit tests, no game required
 ```
 
 Build both. The shared modules are compiled separately by each loader, so code
@@ -44,8 +44,10 @@ one: delete its file.
 ./gradlew :fabric:runClient -Pmc=26.2   # the same for 26.2, in fabric/runs/26.2/
 ```
 
-`:neoforge:runClient` and `:neoforge:runServer` are the same for the other
-loader, with their own `neoforge/runs/` directories.
+`:neoforge:runClient`, `:neoforge:runServer`, `:forge:runClient` and
+`:forge:runServer` are the same for the other two loaders, with their own
+`<loader>/runs/` directories. The first Forge run for a game version takes
+longer: ForgeGradle downloads and decompiles Minecraft once.
 
 The dev environment is self-contained: worlds, configs and logs live under
 `<loader>/runs/<mc>/` and never touch a real Minecraft installation. Each game
@@ -73,9 +75,9 @@ Two things that will otherwise cost you an afternoon:
 
 | Module | Contains | Minecraft on the classpath |
 |---|---|---|
-| `common` | HTTP, redaction, file discovery, config, history, translations, the startup sequence | no |
-| `common-mc` | the Brigadier command tree and chat components | yes, via NeoForm |
-| `fabric`, `neoforge` | entrypoint and loader hooks | yes |
+| `common` | HTTP, redaction, file discovery, config, history, translations, the startup sequence, the crash check | no |
+| `common-mc` | the Brigadier command tree, chat components, the title-screen crash offer | yes, via NeoForm |
+| `fabric`, `neoforge`, `forge` | entrypoints and loader hooks | yes |
 
 `common` and `common-mc` are consumed as **source**, so every loader recompiles
 them with its own toolchain. Adding Paper means writing one thin adapter, not
@@ -101,8 +103,8 @@ before it reads a real file, because a gate that cannot fail reports success.
 ## The store description
 
 `mod_description.txt` at the repository root, read as UTF-8 and folded to a
-single line, becomes the description in `fabric.mod.json` and
-`neoforge.mods.toml`. It is a file rather than a key in `gradle.properties`
+single line, becomes the description in `fabric.mod.json`,
+`neoforge.mods.toml` and Forge's `mods.toml`. It is a file rather than a key in `gradle.properties`
 because Gradle reads that file as ISO-8859-1, and a non-ASCII character there
 reaches the jar double-encoded — first seen, in practice, on a store page.
 

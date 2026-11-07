@@ -36,7 +36,8 @@ public class AlaLoggerNeoForge {
         NeoForge.EVENT_BUS.addListener(
                 (RegisterCommandsEvent event) -> AlaLoggerCommand.register(event.getDispatcher(), mod.service()));
 
-        NeoForge.EVENT_BUS.addListener((ServerStartedEvent event) -> mod.serverStarted());
+        NeoForge.EVENT_BUS.addListener(
+                (ServerStartedEvent event) -> mod.serverStarted(event.getServer().isDedicatedServer()));
         NeoForge.EVENT_BUS.addListener(
                 (ServerStoppedEvent event) -> mod.serverStopped(event.getServer().isDedicatedServer()));
     }

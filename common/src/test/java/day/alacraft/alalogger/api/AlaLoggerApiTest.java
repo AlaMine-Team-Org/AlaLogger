@@ -130,6 +130,7 @@ class AlaLoggerApiTest {
 
     // ---- Uploading ----
 
+    // @implements TC-LOG-006
     @Test
     void uploadReturnsTheLinkAndWhatTheSiteFound() throws Exception {
         responder = request -> Reply.json(201, UPLOAD_RESPONSE);
@@ -164,6 +165,7 @@ class AlaLoggerApiTest {
         assertEquals("Remove the heaviest mods.", insight.solutions().get(1).text());
     }
 
+    // @implements TC-LOG-006
     @Test
     void uploadIsCompressedAndTheServerCanReadItBack() throws Exception {
         responder = request -> Reply.json(201, UPLOAD_RESPONSE);
@@ -185,6 +187,7 @@ class AlaLoggerApiTest {
                         + request.rawBytes().length + " from " + request.body().length());
     }
 
+    // @implements TC-LOG-006
     @Test
     void uploadWithoutCompressionSendsPlainJson() throws Exception {
         responder = request -> Reply.json(201, UPLOAD_RESPONSE);
@@ -196,6 +199,7 @@ class AlaLoggerApiTest {
         assertEquals("hello", request.json().get("content").getAsString());
     }
 
+    // @implements TC-LOG-006
     @Test
     void uploadIdentifiesItselfTheWayTheApiAsksFor() throws Exception {
         responder = request -> Reply.json(201, UPLOAD_RESPONSE);
@@ -222,6 +226,7 @@ class AlaLoggerApiTest {
         assertFalse(request.json().has("lang"));
     }
 
+    // @implements TC-LOG-006
     @Test
     void anonymousUploadSendsNoToken() throws Exception {
         responder = request -> Reply.json(201, UPLOAD_RESPONSE);
@@ -231,6 +236,7 @@ class AlaLoggerApiTest {
         assertNull(only().header("Authorization"));
     }
 
+    // @implements TC-LOG-006
     @Test
     void metadataTravelsInTheAgreedShape() throws Exception {
         responder = request -> Reply.json(201, UPLOAD_RESPONSE);
@@ -253,6 +259,7 @@ class AlaLoggerApiTest {
 
     // ---- Failures the caller has to tell apart ----
 
+    // @implements TC-LOG-007
     @Test
     void rateLimitingSaysHowLongToWait() {
         responder = request -> Reply.json(429, """
@@ -269,6 +276,7 @@ class AlaLoggerApiTest {
         assertFalse(error.isTransport());
     }
 
+    // @implements TC-LOG-007
     @Test
     void anHtmlErrorPageFromTheProxyStillLandsOnTheRightCase() {
         // nginx refusing an oversized body never reaches the application, so
@@ -284,6 +292,7 @@ class AlaLoggerApiTest {
         assertFalse(error.isRetryable());
     }
 
+    // @implements TC-LOG-007
     @Test
     void anUnknownErrorCodeIsKeptRatherThanLost() {
         responder = request -> Reply.json(422, """
@@ -297,6 +306,7 @@ class AlaLoggerApiTest {
         assertEquals("Something new.", error.message());
     }
 
+    // @implements TC-LOG-007
     @Test
     void knownErrorCodesAreTyped() {
         responder = request -> Reply.json(422, """
@@ -312,6 +322,7 @@ class AlaLoggerApiTest {
         assertEquals(ApiErrorCode.UNSUPPORTED_ENCODING, failure(client().upload("a log")).code());
     }
 
+    // @implements TC-LOG-007
     @Test
     void aSuccessThatIsNotJsonIsReportedAsSuch() {
         // A captive portal or a misrouted proxy: HTTP 200, and not a word of JSON.
@@ -323,6 +334,7 @@ class AlaLoggerApiTest {
         assertEquals(200, error.status());
     }
 
+    // @implements TC-LOG-007
     @Test
     void aRedirectSaysToCheckTheUrl() {
         responder = request -> Reply.html(301, "").header("Location", "https://alacraft.day/api/v1/logs");
@@ -333,6 +345,7 @@ class AlaLoggerApiTest {
         assertTrue(error.message().contains("base URL"), "expected advice about the URL, got: " + error.message());
     }
 
+    // @implements TC-LOG-007
     @Test
     void aServerErrorIsWorthRetrying() {
         responder = request -> Reply.html(502, "<html>502 Bad Gateway</html>");
@@ -343,6 +356,7 @@ class AlaLoggerApiTest {
         assertTrue(error.isRetryable());
     }
 
+    // @implements TC-LOG-007
     @Test
     void aTimeoutIsNotAServerFailure() {
         responder = request -> {
@@ -359,6 +373,7 @@ class AlaLoggerApiTest {
         assertTrue(error.isRetryable());
     }
 
+    // @implements TC-LOG-007
     @Test
     void anUnreachableSiteIsNotAnApiError() throws IOException {
         int deadPort;
@@ -385,6 +400,7 @@ class AlaLoggerApiTest {
      * operator running their own instance was told our site was down when
      * theirs was — and went to check a machine that was not theirs.
      */
+    // @implements TC-LOG-007
     @Test
     void theClientNamesTheHostItActuallyTalksTo() {
         assertEquals("alacraft.day",
@@ -401,6 +417,7 @@ class AlaLoggerApiTest {
 
     // ---- Limits ----
 
+    // @implements TC-LOG-006
     @Test
     void limitsAreParsedAndThenRemembered() throws Exception {
         AtomicInteger calls = new AtomicInteger();
@@ -427,6 +444,7 @@ class AlaLoggerApiTest {
         assertEquals(1, calls.get(), "the second call must not reach the network");
     }
 
+    // @implements TC-LOG-006
     @Test
     void aFailedLimitsLookupIsNotRemembered() throws Exception {
         AtomicInteger calls = new AtomicInteger();
@@ -447,6 +465,7 @@ class AlaLoggerApiTest {
 
     // ---- Deleting ----
 
+    // @implements TC-LOG-009
     @Test
     void deleteUsesTheLogsOwnToken() throws Exception {
         responder = request -> Reply.json(200, "{\"success\": true}");
@@ -461,6 +480,7 @@ class AlaLoggerApiTest {
         assertEquals("Bearer owner-token", request.header("Authorization"));
     }
 
+    // @implements TC-LOG-009
     @Test
     void deleteWithTheWrongTokenIsTold() {
         responder = request -> Reply.json(401, """
@@ -473,18 +493,24 @@ class AlaLoggerApiTest {
         assertFalse(error.isRetryable(), "resending a rejected token only burns the rate limit");
     }
 
+    // @implements TC-LOG-009
     @Test
     void deleteRefusesAnIdThatIsNotOne() {
         AlaLoggerApi api = client();
 
         // Concatenated into a URL, so this is the guard against a path escaping
-        // the endpoint — and it fails at the call site, not in a future.
-        assertThrows(IllegalArgumentException.class, () -> api.delete("../../admin", "token"));
-        assertThrows(IllegalArgumentException.class, () -> api.delete("", "token"));
+        // the endpoint. It fails the future like every other refusal, so a
+        // caller handling only the future still sees it, and nothing is sent.
+        assertEquals(ApiErrorCode.INVALID_REQUEST, failure(api.delete("../../admin", "token")).code());
+        assertEquals(ApiErrorCode.INVALID_REQUEST, failure(api.delete("", "token")).code());
+        assertEquals(ApiErrorCode.INVALID_REQUEST, failure(api.delete(null, "token")).code());
+        assertEquals(ApiErrorCode.INVALID_REQUEST, failure(api.insights("../x", "en")).code());
+        assertTrue(requests.isEmpty(), "a refused id must not reach the network");
     }
 
     // ---- Shapes we do not control ----
 
+    // @implements TC-LOG-006
     @Test
     void aResponseMissingHalfItsFieldsStillParses() throws Exception {
         // Nothing here is guaranteed by us; a future field, a null, or an
@@ -522,6 +548,7 @@ class AlaLoggerApiTest {
         assertTrue(insight.solutions().isEmpty());
     }
 
+    // @implements TC-LOG-006
     @Test
     void userAgentFollowsTheDocumentedShape() {
         assertEquals("AlaLogger/1.0.0 (Minecraft 26.2; fabric)",
@@ -536,6 +563,7 @@ class AlaLoggerApiTest {
                 AlaLoggerApi.userAgent("1.0\n", "26.2", "fabric"));
     }
 
+    // @implements TC-LOG-008
     @Test
     void aBaseUrlThatCannotWorkIsRejectedImmediately() {
         assertThrows(IllegalArgumentException.class, () -> AlaLoggerApi.builder(""));

@@ -60,20 +60,21 @@ jobs:
           MC: ${{ matrix.mc }}
         run: ./gradlew :common:test -Pmc="$MC" --no-daemon --stacktrace
 
-      # Both loaders, always, in one job. The shared code is compiled separately
-      # by each of them, so a change that compiles under one can fail under the
-      # other - and finding that out at release time means the release is already
-      # half-published. The same holds for the two Minecraft versions, which is
-      # why this job runs once per version.
-      - name: Build both loaders
+      # Every loader, always, in one job. The shared code is compiled separately
+      # by each of them, so a change that compiles under one can fail under
+      # another - and finding that out at release time means the release is
+      # already half-published. The same holds for the two Minecraft versions,
+      # which is why this job runs once per version.
+      - name: Build all loaders
         env:
           MC: ${{ matrix.mc }}
-        run: ./gradlew :fabric:build :neoforge:build -Pmc="$MC" --no-daemon --stacktrace
+        run: ./gradlew :fabric:build :neoforge:build :forge:build -Pmc="$MC" --no-daemon --stacktrace
 
-      - name: Verify both artifacts
+      - name: Verify every artifact
         env:
           MC: ${{ matrix.mc }}
         run: |
           VERSION=$(grep '^version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
           bash .github/scripts/verify-artifact.sh "$VERSION" . fabric "$MC"
           bash .github/scripts/verify-artifact.sh "$VERSION" . neoforge "$MC"
+          bash .github/scripts/verify-artifact.sh "$VERSION" . forge "$MC"

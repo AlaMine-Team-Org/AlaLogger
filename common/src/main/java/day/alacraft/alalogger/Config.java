@@ -100,26 +100,36 @@ public final class Config {
                 config.persistHistory = bool(json, "persistHistory", config.persistHistory);
                 config.broadcastToAdmins = bool(json, "broadcastToAdmins", config.broadcastToAdmins);
             }
-
-            config.normalise();
-
-            // A file whose apiBaseUrl could not be used is left exactly as the
-            // operator wrote it. Rewriting it would replace their address with
-            // ours, so the typo they have to fix would be gone, their intent
-            // with it, and — because the file would then read as valid — the
-            // warning about it would never appear again. They would be left
-            // sending logs to alacraft.day, silently, having asked for their own
-            // instance. The mod runs on the default meanwhile; only the file is
-            // spared.
-            if (!config.apiBaseUrlRepaired) {
-                config.save(file);
-            }
         } catch (Exception e) {
             // A broken config must not stop a server from starting. Defaults are
             // safe and the file is left untouched so the player can fix it.
             AlaLogger.LOGGER.warn("Could not read {} ({}). Using defaults; the file was left as it is.",
                     file, e.getMessage());
-            config.normalise();
+            Config defaults = new Config();
+            defaults.normalise();
+            return defaults;
+        }
+
+        config.normalise();
+
+        // A file whose apiBaseUrl could not be used is left exactly as the
+        // operator wrote it. Rewriting it would replace their address with
+        // ours, so the typo they have to fix would be gone, their intent
+        // with it, and — because the file would then read as valid — the
+        // warning about it would never appear again. They would be left
+        // sending logs to alacraft.day, silently, having asked for their own
+        // instance. The mod runs on the default meanwhile; only the file is
+        // spared.
+        if (!config.apiBaseUrlRepaired) {
+            try {
+                config.save(file);
+            } catch (Exception e) {
+                // Reading worked, so the values from the file are in use. Saying
+                // "using defaults" here, as one shared catch used to, would send
+                // the operator looking for a problem in a file that is fine.
+                AlaLogger.LOGGER.warn("Could not write {} ({}). The settings read from it are in use; "
+                        + "missing keys were not added to the file.", file, e.getMessage());
+            }
         }
 
         return config;
@@ -218,10 +228,29 @@ public final class Config {
     }
 
     private static boolean bool(JsonObject json, String key, boolean fallback) {
-        try {
-            return json.has(key) && json.get(key).isJsonPrimitive() ? json.get(key).getAsBoolean() : fallback;
-        } catch (Exception e) {
+        if (!json.has(key) || !json.get(key).isJsonPrimitive()) {
             return fallback;
         }
+
+        // Gson's getAsBoolean() parses a string with Boolean.parseBoolean, which
+        // reads everything except "true" as false - so "yes" would quietly turn a
+        // switch off. Only a real boolean, or the words true/false, count; any
+        // other value keeps the default and says so.
+        var primitive = json.get(key).getAsJsonPrimitive();
+        if (primitive.isBoolean()) {
+            return primitive.getAsBoolean();
+        }
+
+        String text = primitive.getAsString().trim();
+        if (text.equalsIgnoreCase("true")) {
+            return true;
+        }
+        if (text.equalsIgnoreCase("false")) {
+            return false;
+        }
+
+        AlaLogger.LOGGER.warn("\"{}\" in the config must be true or false, not \"{}\". Keeping the default ({}).",
+                key, text, fallback);
+        return fallback;
     }
 }

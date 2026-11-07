@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+// @implements TC-LOG-011
 class ChatTextTest {
 
     private static final char ESCAPE = '\u00a7';

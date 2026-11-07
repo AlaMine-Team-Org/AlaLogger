@@ -71,5 +71,21 @@
   "redaction.token": "session tokens",
   "redaction.secret": "keys and passwords",
   "redaction.seed": "world seed",
-  "redaction.memdump": "memory dumps"
+  "redaction.memdump": "memory dumps",
+  "client_crash.notice": "The last game crashed. Share the log?",
+  "client_crash.toast": "The last game crashed. Ala Logger can upload the crash for you.",
+  "client_crash.notice.hint": "Opens the files the crash left behind. Nothing is uploaded until you click.",
+  "client_crash.title": "The last game crashed",
+  "client_crash.intro": "The crash left these files. Upload one to get a short link for a bug report or a support chat.",
+  "client_crash.no_report": "The game closed without a crash report. This is the log of that session.",
+  "client_crash.privacy": "IP addresses, account names and session tokens are removed before anything is sent.",
+  "client_crash.upload": "Upload",
+  "client_crash.uploading": "Uploading...",
+  "client_crash.copy": "Copy link",
+  "client_crash.open": "Open in browser",
+  "client_crash.discord": "Copy for Discord",
+  "client_crash.discord.hint": "Copy a ready message for a support chat: the link, the versions and the first problem found.",
+  "client_crash.discord.text": "Minecraft crashed: {url} (Minecraft {mc}, {loader}, Ala Logger {version})",
+  "client_crash.close": "Close",
+  "client_crash.copied": "Copied"
 }

@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * one floor up, in the API client's builder, and threw out of the entrypoint. The
  * first three tests here are about that specific hole.
  */
+// @implements TC-LOG-008
 class ConfigTest {
 
     @TempDir
@@ -138,19 +139,30 @@ class ConfigTest {
     }
 
     @Test
-    @DisplayName("a word where a boolean belongs reads as false, which is worth knowing")
-    void aNonBooleanWordTurnsAFlagOff() {
-        // Not the behaviour you would design. Gson reads any string primitive as
-        // a boolean by parsing it, and everything that is not "true" parses as
-        // false - so `"crashWatch": "yes"` silently turns the crash watch off
-        // rather than falling back to the default, and nothing says so.
-        //
-        // Recorded rather than changed: the fix belongs with the other config
-        // hardening, not smuggled into a refactor. This test is what will notice
-        // when it is fixed.
-        assertFalse(write("{\"crashWatch\": \"yes please\"}").crashWatch);
+    @DisplayName("a word where a boolean belongs keeps the default instead of turning the flag off")
+    void aNonBooleanWordKeepsTheDefault() {
+        // Gson alone would read "yes" as false and silently switch the crash
+        // watch off. Anything that is not true/false keeps the default.
+        assertTrue(write("{\"crashWatch\": \"yes please\"}").crashWatch);
+        assertTrue(write("{\"crashWatch\": 0}").crashWatch);
         assertTrue(write("{\"crashWatch\": \"true\"}").crashWatch);
+        assertFalse(write("{\"crashWatch\": \"FALSE\"}").crashWatch);
+        assertFalse(write("{\"crashWatch\": false}").crashWatch);
         assertTrue(write("{}").crashWatch, "an absent key does fall back correctly");
+    }
+
+    @Test
+    @DisplayName("a file that reads but cannot be written keeps its values, not the defaults")
+    void aFailedWriteKeepsWhatWasRead() throws IOException {
+        // The atomic write goes through "<file>.tmp"; a non-empty directory of
+        // that name makes the write fail on every OS, while the read still works.
+        Path blocker = Files.createDirectories(file().resolveSibling(file().getFileName() + ".tmp"));
+        Files.writeString(blocker.resolve("keep"), "x", StandardCharsets.UTF_8);
+
+        Config config = write("{\"insightsInChat\": 7, \"crashWatch\": false}");
+
+        assertEquals(7, config.insightsInChat);
+        assertFalse(config.crashWatch);
     }
 
     @Test

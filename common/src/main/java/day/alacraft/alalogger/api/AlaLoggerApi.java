@@ -237,7 +237,7 @@ public final class AlaLoggerApi implements AutoCloseable {
      */
     public CompletableFuture<List<Insight>> insights(String id, String language) {
         if (id == null || !LOG_ID.matcher(id).matches()) {
-            throw new IllegalArgumentException("Not a log id: '" + id + "'.");
+            return notALogId(id);
         }
 
         String path = "/logs/" + id + "/insights";
@@ -261,11 +261,12 @@ public final class AlaLoggerApi implements AutoCloseable {
      * already gone — which for a delete is arguably the desired state, and worth
      * treating as such rather than as a failure.
      *
-     * @throws IllegalArgumentException if {@code id} is not a plausible log id.
+     * <p>An {@code id} that is not a plausible log id fails the future with
+     * {@link ApiErrorCode#INVALID_REQUEST} before anything is sent.
      */
     public CompletableFuture<Void> delete(String id, String ownerToken) {
         if (id == null || !LOG_ID.matcher(id).matches()) {
-            throw new IllegalArgumentException("Not a log id: '" + id + "'.");
+            return notALogId(id);
         }
 
         HttpRequest request = request(uri("/logs/" + id))
@@ -274,6 +275,19 @@ public final class AlaLoggerApi implements AutoCloseable {
                 .build();
 
         return send(request, json -> null);
+    }
+
+    /**
+     * The id is concatenated into a URL, so anything that is not one stops here.
+     *
+     * <p>As a failed future, not a thrown exception: every other refusal reaches
+     * the caller through the future, and a caller that only handles the future
+     * (a command reply in {@code whenComplete}) would otherwise get an exception
+     * on its own thread for the one case nobody tested.
+     */
+    private static <T> CompletableFuture<T> notALogId(String id) {
+        return CompletableFuture.failedFuture(new ApiException(
+                ApiError.client(ApiErrorCode.INVALID_REQUEST, "Not a log id: '" + id + "'.")));
     }
 
     /**

@@ -1,0 +1,46 @@
+plugins {
+    id 'multiloader-loader'
+    id 'net.minecraftforge.gradle'
+}
+
+// MinecraftForge, the third loader, beside NeoForge (its 2023 fork) and Fabric.
+//
+// ForgeGradle 7 has no Minecraft-specific source mappings to worry about: Forge
+// 26.x runs on Mojang's names at dev time and in production (no SRG, no reobf), so
+// common-mc - compiled against NeoForm - is the same source here as everywhere
+// else. The layout follows the Forge 26.2/26.3 MDK; the same plugin set (FG7,
+// Loom, ModDevGradle) lives side by side in one build in lucko/spark.
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+}
+
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${minecraft_version}-${forge_version}")
+}
+
+minecraft {
+    runs {
+        configureEach {
+            // One game directory per Minecraft version, as on the other two
+            // loaders: a world saved by 26.3 cannot be opened by 26.2.
+            workingDir = layout.projectDirectory.dir("runs/${minecraft_version}/${it.name}")
+        }
+        register('client')
+        register('server') {
+            args '--nogui'
+        }
+    }
+}
+
+// The same loader attribute the other two modules set, for the day this module is
+// consumed as a dependency rather than as a jar. findByName: this project does not
+// publish sources or javadoc, so those configurations do not exist.
+def loaderAttribute = Attribute.of('io.github.mcgradleconventions.loader', String)
+['apiElements', 'runtimeElements', 'sourcesElements', 'javadocElements'].each { variant ->
+    configurations.findByName(variant)?.attributes {
+        attribute(loaderAttribute, 'forge')
+    }
+}

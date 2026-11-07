@@ -157,6 +157,9 @@ processResources {
             // configuration time instead of only where it is used.
             'neoforge_version'             : findProperty('neoforge_version') ?: '',
             'neoforge_loader_version_range': findProperty('neoforge_loader_version_range') ?: '',
+            'forge_version'                : findProperty('forge_version') ?: '',
+            'forge_loader_version_range'   : findProperty('forge_loader_version_range') ?: '',
+            'forge_pack_format'            : findProperty('forge_pack_format') ?: '',
             'mod_name'               : mod_name,
             'mod_author'             : mod_author,
             'mod_id'                 : mod_id,
@@ -188,11 +191,12 @@ processResources {
         [(key): value instanceof String ? escapeJson(value) : value]
     }
 
+    // pack.mcmeta exists only in the Forge module, which needs it (see forge/).
     filesMatching(['pack.mcmeta', 'fabric.mod.json', "${mod_id}.build.json".toString()]) {
         expand jsonExpandProps
     }
 
-    filesMatching(['META-INF/neoforge.mods.toml']) {
+    filesMatching(['META-INF/neoforge.mods.toml', 'META-INF/mods.toml']) {
         expand expandProps
     }
 

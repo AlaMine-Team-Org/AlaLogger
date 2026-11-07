@@ -23,6 +23,9 @@
 	"entrypoints": {
 		"main": [
 			"day.alacraft.alalogger.fabric.AlaLoggerFabric"
+		],
+		"client": [
+			"day.alacraft.alalogger.fabric.AlaLoggerFabricClient"
 		]
 	},
 	"depends": {

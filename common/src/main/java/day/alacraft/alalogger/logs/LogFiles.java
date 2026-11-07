@@ -121,6 +121,11 @@ public final class LogFiles {
 
     private final List<Source> sources;
 
+    /** The {@code -XX:ErrorFile} name template, when it names a directory that also holds ordinary logs. */
+    private final Pattern errorFileName;
+
+    private final Path errorFileDirectory;
+
     /**
      * Builds the scan for a game directory, asking the running JVM where it
      * would write a fatal error log.
@@ -177,15 +182,43 @@ public final class LogFiles {
             }
         }
 
+        Pattern retype = null;
+        Path retypeDirectory = null;
+
         if (errorFile != null && errorFile.getParent() != null) {
             // -XX:ErrorFile can rename the file as well as move it, so matching
             // hs_err_pid*.log in that directory is not enough — the template has
             // to be turned into a name filter of its own.
             Pattern configured = errorFileNamePattern(errorFile.getFileName().toString());
-            add(byDirectory, errorFile.getParent(), LogFileType.JVM_CRASH,
-                    crashName.or(name -> configured.matcher(name).matches()));
+            Predicate<String> configuredName = name -> configured.matcher(name).matches();
+            add(byDirectory, errorFile.getParent(), LogFileType.JVM_CRASH, crashName.or(configuredName));
+
+            // When the template points into a directory that already holds
+            // ordinary logs (logs/ itself), the directory keeps its own type, so
+            // the file has to be recognised by its name instead - otherwise a
+            // JVM crash is read from the tail and loses the header the dump
+            // redaction keys on. A template that would also match latest.log
+            // (%t.log, say) is too wide to trust for that: it is ignored here
+            // rather than turning the live log into a "crash".
+            if (!configured.matcher(CURRENT_LOG).matches()) {
+                try {
+                    retypeDirectory = errorFile.getParent().toAbsolutePath().normalize();
+                    retype = configured;
+
+                    Source existing = byDirectory.get(retypeDirectory);
+                    if (existing != null && existing.type() != LogFileType.JVM_CRASH) {
+                        byDirectory.put(retypeDirectory,
+                                new Source(retypeDirectory, existing.type(), existing.accepts().or(configuredName)));
+                    }
+                } catch (InvalidPathException | SecurityException e) {
+                    retype = null;
+                    retypeDirectory = null;
+                }
+            }
         }
 
+        this.errorFileName = retype;
+        this.errorFileDirectory = retypeDirectory;
         this.sources = List.copyOf(byDirectory.values());
     }
 
@@ -370,7 +403,11 @@ public final class LogFiles {
             // A JVM error log is typed by its name wherever it was found, because
             // -XX:ErrorFile can put one in logs/, where the directory would
             // otherwise label it a plain log and read it from the wrong end.
-            LogFileType type = HS_ERR_NAME.matcher(name).matches() ? LogFileType.JVM_CRASH : source.type();
+            boolean namedAsErrorFile = errorFileName != null
+                    && source.directory().equals(errorFileDirectory)
+                    && errorFileName.matcher(name).matches();
+            LogFileType type = HS_ERR_NAME.matcher(name).matches() || namedAsErrorFile
+                    ? LogFileType.JVM_CRASH : source.type();
 
             return Optional.of(new LogFile(
                     real, name, type, attributes.size(), attributes.lastModifiedTime().toInstant()));

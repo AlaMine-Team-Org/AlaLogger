@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * half protects the log. Both matter — a rule that masks the mod list is a rule
  * nobody will keep switched on.
  */
+// @implements TC-LOG-004
 class IpAddressRuleTest {
 
     private final IpAddressRule rule = new IpAddressRule();

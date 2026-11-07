@@ -15,15 +15,15 @@
 # workflow: MODRINTH_TOKEN, MODRINTH_PROJECT, VERSION, MC, JAR, and optionally
 # RELEASE_TYPE (release, the default, or beta).
 #
-# Usage: publish-modrinth.sh <fabric|neoforge>
+# Usage: publish-modrinth.sh <fabric|neoforge|forge>
 
 set -uo pipefail
 
 LOADER="${1:-}"
 
 case "$LOADER" in
-    fabric|neoforge) ;;
-    *) echo "::error::usage: publish-modrinth.sh <fabric|neoforge>"; exit 2 ;;
+    fabric|neoforge|forge) ;;
+    *) echo "::error::usage: publish-modrinth.sh <fabric|neoforge|forge>"; exit 2 ;;
 esac
 
 for required in MODRINTH_TOKEN MODRINTH_PROJECT VERSION MC JAR; do
@@ -42,21 +42,30 @@ esac
 [ -f "$JAR" ] || { echo "::error::no such jar: $JAR"; exit 1; }
 [ -s NOTES.md ] || { echo "::error::NOTES.md is missing or empty"; exit 1; }
 
+# This version's changelog: the shared notes plus the blocks for this loader only.
+LOADER_NOTES="$(mktemp)"
+bash "$(dirname "$0")/notes-for-loader.sh" "$LOADER" NOTES.md > "$LOADER_NOTES" \
+    || { echo "::error::could not render the notes for $LOADER"; exit 1; }
+
 # Fabric API (P7dR8mSH) is a hard dependency of the Fabric build and irrelevant to
-# the NeoForge one, which is the whole reason these are two versions.
-if [ "$LOADER" = "fabric" ]; then
-    DEPENDENCIES='[{"project_id": "P7dR8mSH", "dependency_type": "required"}]'
-    NAME="Ala Logger $VERSION-mc$MC [Fabric]"
-else
-    DEPENDENCIES='[]'
-    NAME="Ala Logger $VERSION-mc$MC [NeoForge]"
-fi
+# the NeoForge and Forge ones, which is the whole reason these are separate versions.
+case "$LOADER" in
+    fabric)
+        DEPENDENCIES='[{"project_id": "P7dR8mSH", "dependency_type": "required"}]'
+        NAME="Ala Logger $VERSION-mc$MC [Fabric]" ;;
+    neoforge)
+        DEPENDENCIES='[]'
+        NAME="Ala Logger $VERSION-mc$MC [NeoForge]" ;;
+    forge)
+        DEPENDENCIES='[]'
+        NAME="Ala Logger $VERSION-mc$MC [Forge]" ;;
+esac
 
 DATA=$(jq -n \
     --arg name "$NAME" \
     --arg version_number "$VERSION-mc$MC+$LOADER" \
     --arg version_type "$RELEASE_TYPE" \
-    --rawfile changelog NOTES.md \
+    --rawfile changelog "$LOADER_NOTES" \
     --arg project_id "$MODRINTH_PROJECT" \
     --arg game_version "$MC" \
     --arg loader "$LOADER" \

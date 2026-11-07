@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * wrong, a hand-edited {@code apiBaseUrl}, was never tested against it, and a
  * typo in that field stopped servers from starting.
  */
+// @implements TC-LOG-008
 class AlaLoggerBootstrapTest {
 
     @TempDir
@@ -100,6 +101,28 @@ class AlaLoggerBootstrapTest {
         mod.serverStopped(false);
 
         assertEquals("alacraft.day", mod.service().host());
+    }
+
+    // @implements TC-LOG-015
+    @Test
+    @DisplayName("a singleplayer world starting does not spend the client's crash reports")
+    void theIntegratedServerDoesNotSpendTheClientsCrashes() throws IOException {
+        // A port nothing listens on: serverStarted() warms the limits cache, and a
+        // unit test has no business calling the real site.
+        Files.createDirectories(configDirectory());
+        Files.writeString(configDirectory().resolve("alalogger.json"),
+                "{\"apiBaseUrl\": \"http://127.0.0.1:9/api/v1\"}", StandardCharsets.UTF_8);
+        Path reports = Files.createDirectories(root.resolve("game/crash-reports"));
+        Files.writeString(reports.resolve("crash-client.txt"), "---- Minecraft Crash Report ----\n",
+                StandardCharsets.UTF_8);
+
+        AlaLoggerBootstrap mod = start();
+        mod.serverStarted(false);
+
+        ClientCrashCheck.Offer offer = mod.clientStarted().join();
+
+        assertEquals(1, offer.files().size(), "the title-screen offer must still see it");
+        assertEquals("crash-client.txt", offer.files().get(0).name());
     }
 
     @Test

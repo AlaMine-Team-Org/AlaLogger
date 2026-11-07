@@ -64,12 +64,22 @@ public final class CrashWatch {
     }
 
     /**
-     * Crash files worth telling the operator about, newest first.
+     * Crash files worth telling the operator about, newest first, marked as
+     * reported in the same call.
      *
-     * <p>Marks everything it returns as seen before returning, so a caller that
-     * crashes while printing does not produce the same list forever.
+     * <p>For the console, where printing them cannot fail in any way worth
+     * retrying: the server announces and forgets. A screen the player may close
+     * without reading uses {@link #pending()} and {@link #markShown(List)}
+     * instead, so a file counts as shown only once it actually was.
      */
     public List<LogFile> unreported() {
+        List<LogFile> fresh = pending();
+        markShown(fresh);
+        return fresh;
+    }
+
+    /** Crash files not reported yet, newest first. Reads the marker; writes nothing. */
+    public List<LogFile> pending() {
         Marker marker = readMarker();
         Instant cutoff = marker.firstRun()
                 ? Instant.now().minus(FIRST_RUN_WINDOW)
@@ -91,28 +101,23 @@ public final class CrashWatch {
             fresh.add(file);
         }
 
-        if (!fresh.isEmpty() || marker.firstRun()) {
-            Set<String> seen = new LinkedHashSet<>(marker.seen());
-            fresh.forEach(file -> seen.add(key(file)));
-            writeMarker(seen);
-        }
-
         return fresh;
     }
 
     /**
-     * What identifies a crash file across restarts.
-     *
-     * <p>The resolved path, not the name. HotSpot writes {@code hs_err_pid<PID>.log}
-     * into the working directory or into {@code java.io.tmpdir}, and pids are
-     * reused, so two different crashes can arrive under one name from two
-     * directories at once. Keyed by name, the second one is silently never
-     * offered — and the one in tmpdir is usually the interesting half, because it
-     * is where the JVM lands when it could not write beside the game.
-     *
-     * <p>{@link LogFile#path()} is already resolved through {@code toRealPath()},
-     * so two spellings of the same file cannot produce two keys.
+     * Records files as reported. Also ends the first run when nothing was found,
+     * so the seven-day window applies once and not on every quiet start.
      */
+    public void markShown(List<LogFile> shown) {
+        Marker marker = readMarker();
+
+        if (!shown.isEmpty() || marker.firstRun()) {
+            Set<String> seen = new LinkedHashSet<>(marker.seen());
+            shown.forEach(file -> seen.add(key(file)));
+            writeMarker(seen);
+        }
+    }
+
     private static String key(LogFile file) {
         return file.path().toString();
     }

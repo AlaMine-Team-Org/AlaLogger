@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>Shape taken from a real Temurin 25 hs_err file plus the launch arguments the
  * vanilla launcher passes, as documented in {@code docs/research/06-crash-safety.md}.
  */
+// @implements TC-LOG-005
 class HsErrRedactionTest {
 
     private static final String TOKEN =

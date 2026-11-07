@@ -71,5 +71,21 @@
   "redaction.token": "tokens de sesión",
   "redaction.secret": "claves y contraseñas",
   "redaction.seed": "seed del mundo",
-  "redaction.memdump": "volcados de memoria"
+  "redaction.memdump": "volcados de memoria",
+  "client_crash.notice": "La última partida se cerró por un error. ¿Compartir el log?",
+  "client_crash.toast": "La última partida se cerró por un error. Ala Logger puede subir el crash.",
+  "client_crash.notice.hint": "Abre los archivos que dejó el crash. No se sube nada hasta que hagas clic.",
+  "client_crash.title": "La última partida se cerró por un error",
+  "client_crash.intro": "El crash dejó estos archivos. Sube uno para obtener un enlace corto para un informe de error o un chat de soporte.",
+  "client_crash.no_report": "El juego se cerró sin informe de crash. Este es el log de esa sesión.",
+  "client_crash.privacy": "Las direcciones IP, los nombres de cuenta y los tokens de sesión se eliminan antes de enviar nada.",
+  "client_crash.upload": "Subir",
+  "client_crash.uploading": "Subiendo...",
+  "client_crash.copy": "Copiar enlace",
+  "client_crash.open": "Abrir en el navegador",
+  "client_crash.discord": "Copiar para Discord",
+  "client_crash.discord.hint": "Copia un mensaje listo para un chat de soporte: el enlace, las versiones y el primer problema encontrado.",
+  "client_crash.discord.text": "Minecraft se cerró por un error: {url} (Minecraft {mc}, {loader}, Ala Logger {version})",
+  "client_crash.close": "Cerrar",
+  "client_crash.copied": "Copiado"
 }

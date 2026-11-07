@@ -18,7 +18,15 @@ public final class ApiException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Not serialisable ({@link ApiError} carries an {@code Optional}), so it is
+     * {@code null} on a deserialised copy. Exceptions here never cross a process
+     * boundary, but a copy that does must not throw from {@link #code()}: the
+     * code is kept in its own field, and an enum serialises fine.
+     */
     private final transient ApiError error;
+
+    private final ApiErrorCode code;
 
     public ApiException(ApiError error) {
         this(error, null);
@@ -27,6 +35,7 @@ public final class ApiException extends RuntimeException {
     public ApiException(ApiError error, Throwable cause) {
         super(error.code().wireName() + ": " + error.message(), cause);
         this.error = error;
+        this.code = error.code();
     }
 
     public ApiError error() {
@@ -35,7 +44,7 @@ public final class ApiException extends RuntimeException {
 
     /** Shorthand for {@code error().code()} — the value nearly every caller switches on. */
     public ApiErrorCode code() {
-        return error.code();
+        return code;
     }
 
     /**

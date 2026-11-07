@@ -71,5 +71,21 @@
   "redaction.token": "tokens de sessão",
   "redaction.secret": "chaves e senhas",
   "redaction.seed": "seed do mundo",
-  "redaction.memdump": "despejos de memória"
+  "redaction.memdump": "despejos de memória",
+  "client_crash.notice": "O último jogo travou. Compartilhar o log?",
+  "client_crash.toast": "O último jogo travou. O Ala Logger pode enviar o crash.",
+  "client_crash.notice.hint": "Abre os arquivos que o crash deixou. Nada é enviado até você clicar.",
+  "client_crash.title": "O último jogo travou",
+  "client_crash.intro": "O crash deixou estes arquivos. Envie um para obter um link curto para um relatório de bug ou um chat de suporte.",
+  "client_crash.no_report": "O jogo fechou sem relatório de crash. Este é o log daquela sessão.",
+  "client_crash.privacy": "Endereços IP, nomes de conta e tokens de sessão são removidos antes de qualquer envio.",
+  "client_crash.upload": "Enviar",
+  "client_crash.uploading": "Enviando...",
+  "client_crash.copy": "Copiar link",
+  "client_crash.open": "Abrir no navegador",
+  "client_crash.discord": "Copiar para o Discord",
+  "client_crash.discord.hint": "Copia uma mensagem pronta para um chat de suporte: o link, as versões e o primeiro problema encontrado.",
+  "client_crash.discord.text": "O Minecraft travou: {url} (Minecraft {mc}, {loader}, Ala Logger {version})",
+  "client_crash.close": "Fechar",
+  "client_crash.copied": "Copiado"
 }

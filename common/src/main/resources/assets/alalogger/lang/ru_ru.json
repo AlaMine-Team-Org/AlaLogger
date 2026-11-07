@@ -71,5 +71,21 @@
   "redaction.token": "токенов сессии",
   "redaction.secret": "ключей и паролей",
   "redaction.seed": "сид мира",
-  "redaction.memdump": "дампов памяти"
+  "redaction.memdump": "дампов памяти",
+  "client_crash.notice": "Прошлая игра упала. Поделиться логом?",
+  "client_crash.toast": "Прошлая игра упала. Ala Logger может загрузить краш.",
+  "client_crash.notice.hint": "Открывает файлы, которые оставил краш. Ничего не загружается, пока вы не нажмёте кнопку.",
+  "client_crash.title": "Прошлая игра упала",
+  "client_crash.intro": "Краш оставил эти файлы. Загрузите любой, чтобы получить короткую ссылку для баг-репорта или чата поддержки.",
+  "client_crash.no_report": "Игра закрылась без краш-репорта. Это лог той сессии.",
+  "client_crash.privacy": "IP-адреса, имена учётных записей и токены сессии удаляются до отправки.",
+  "client_crash.upload": "Загрузить",
+  "client_crash.uploading": "Загружаю...",
+  "client_crash.copy": "Копировать ссылку",
+  "client_crash.open": "Открыть в браузере",
+  "client_crash.discord": "Скопировать для Discord",
+  "client_crash.discord.hint": "Скопировать готовое сообщение для чата поддержки: ссылку, версии и первую найденную проблему.",
+  "client_crash.discord.text": "Minecraft упал: {url} (Minecraft {mc}, {loader}, Ala Logger {version})",
+  "client_crash.close": "Закрыть",
+  "client_crash.copied": "Скопировано"
 }

@@ -25,8 +25,8 @@ if [ -z "$VERSION" ]; then
 fi
 
 case "$LOADER" in
-    fabric|neoforge) ;;
-    *) echo "verify: unknown loader '$LOADER' (fabric or neoforge)" >&2; exit 2 ;;
+    fabric|neoforge|forge) ;;
+    *) echo "verify: unknown loader '$LOADER' (fabric, neoforge or forge)" >&2; exit 2 ;;
 esac
 
 cd "$TREE" || { echo "verify: cannot enter $TREE" >&2; exit 2; }
@@ -69,19 +69,36 @@ fi
 # The metadata file differs per loader, and checking the RIGHT one is the point:
 # a Fabric jar carrying neoforge.mods.toml, or the reverse, means the wrong
 # artifact was picked up somewhere - and the file name alone would not show it.
-if [ "$LOADER" = "fabric" ]; then
-    META_NAME="fabric.mod.json"
-    WRONG_NAME="neoforge.mods.toml"
-else
-    META_NAME="META-INF/neoforge.mods.toml"
-    WRONG_NAME="fabric.mod.json"
-fi
+#
+# Matched as whole paths: "META-INF/mods.toml" (Forge) is a substring of
+# "META-INF/neoforge.mods.toml", so a substring grep would call every NeoForge
+# jar a Forge one.
+ALL_META="fabric.mod.json META-INF/neoforge.mods.toml META-INF/mods.toml"
+case "$LOADER" in
+    fabric)   META_NAME="fabric.mod.json" ;;
+    neoforge) META_NAME="META-INF/neoforge.mods.toml" ;;
+    forge)    META_NAME="META-INF/mods.toml" ;;
+esac
 
 META="$(unzip -p "$JAR" "$META_NAME" 2>/dev/null || true)"
+JAR_PATHS="$(unzip -Z1 "$JAR" 2>/dev/null || true)"
 
-if unzip -l "$JAR" 2>/dev/null | grep -q "$WRONG_NAME"; then
-    bad "the jar carries $WRONG_NAME - this is not a $LOADER artifact"
+# Forge shows a warning screen on every launch for a mod without pack.mcmeta;
+# the other two loaders do not need one.
+if [ "$LOADER" = "forge" ]; then
+    if printf '%s\n' "$JAR_PATHS" | grep -qxF "pack.mcmeta"; then
+        ok "pack.mcmeta is in the jar"
+    else
+        bad "pack.mcmeta is missing - Forge warns about it on every launch"
+    fi
 fi
+
+for WRONG_NAME in $ALL_META; do
+    [ "$WRONG_NAME" = "$META_NAME" ] && continue
+    if printf '%s\n' "$JAR_PATHS" | grep -qxF "$WRONG_NAME"; then
+        bad "the jar carries $WRONG_NAME - this is not a $LOADER artifact"
+    fi
+done
 
 if [ -z "$META" ]; then
     bad "$META_NAME is not in the jar"
@@ -101,8 +118,9 @@ else
         printf '%s\n' "$META" | grep -n 'version' | sed 's/^/       /'
     fi
 
-    # The game version. Fabric states it as "~26.3", NeoForge as the range from
-    # versions/<mc>.properties; the manifest carries the version it was built on.
+    # The game version. Fabric states it as "~26.3", NeoForge and Forge as the
+    # range from versions/<mc>.properties; the manifest carries the version it
+    # was built on.
     if [ "$LOADER" = "fabric" ]; then
         EXPECTED_MC="\"minecraft\": \"~$MC\""
     else

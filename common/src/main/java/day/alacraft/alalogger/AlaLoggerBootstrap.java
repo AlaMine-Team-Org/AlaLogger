@@ -7,8 +7,10 @@ import day.alacraft.alalogger.logs.LogFile;
 import day.alacraft.alalogger.logs.LogFiles;
 
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Everything both loaders do, in the order they do it.
@@ -28,7 +30,7 @@ import java.util.Objects;
  * <p>So the sequence lives here, in {@code common}, where no loader can reach
  * around it — and where it can be built in a unit test without a game. What is
  * left in a loader module is an adapter: hand this class a {@link Platform}, then
- * wire {@link #serverStarted()} and {@link #serverStopped(boolean)} to whatever
+ * wire {@link #serverStarted(boolean)} and {@link #serverStopped(boolean)} to whatever
  * that loader calls its lifecycle events. {@code tools/loader_parity_check} in
  * the build enforces exactly that shape.
  */
@@ -67,12 +69,17 @@ public final class AlaLoggerBootstrap {
     private final AlaLoggerApi api;
     private final UploadService service;
     private final CrashWatch crashWatch;
+    private final ClientCrashCheck clientCrashCheck;
+    private final Platform platform;
 
-    private AlaLoggerBootstrap(Config config, AlaLoggerApi api, UploadService service, CrashWatch crashWatch) {
+    private AlaLoggerBootstrap(Platform platform, Config config, AlaLoggerApi api, UploadService service,
+            CrashWatch crashWatch, ClientCrashCheck clientCrashCheck) {
+        this.platform = platform;
         this.config = config;
         this.api = api;
         this.service = service;
         this.crashWatch = crashWatch;
+        this.clientCrashCheck = clientCrashCheck;
     }
 
     /**
@@ -100,12 +107,27 @@ public final class AlaLoggerBootstrap {
         UploadService service = new UploadService(config, api, files,
                 new UploadHistory(dataDirectory.resolve("history.json")));
 
-        AlaLoggerBootstrap mod = new AlaLoggerBootstrap(config, api, service,
-                new CrashWatch(dataDirectory.resolve("crash-marker.json"), files));
+        CrashWatch crashWatch = new CrashWatch(dataDirectory.resolve("crash-marker.json"), files);
+
+        AlaLoggerBootstrap mod = new AlaLoggerBootstrap(platform, config, api, service, crashWatch,
+                new ClientCrashCheck(dataDirectory.resolve("session.json"), crashWatch, files,
+                        temporaryDirectory()));
 
         mod.announceReady(configFile);
 
+        running = mod;
         return mod;
+    }
+
+    private static volatile AlaLoggerBootstrap running;
+
+    /**
+     * The instance the loader's main entrypoint started. For a client entrypoint,
+     * which loaders construct separately from the main one and which therefore
+     * has no other way to reach it. Empty only if the main entrypoint has not run.
+     */
+    public static java.util.Optional<AlaLoggerBootstrap> running() {
+        return java.util.Optional.ofNullable(running);
     }
 
     public UploadService service() {
@@ -116,6 +138,11 @@ public final class AlaLoggerBootstrap {
         return config;
     }
 
+    /** The loader and game version this instance runs on. */
+    public Platform platform() {
+        return platform;
+    }
+
     /**
      * The server is up.
      *
@@ -123,11 +150,50 @@ public final class AlaLoggerBootstrap {
      * call while mods are still loading delays startup for something nobody has
      * asked for yet.
      */
-    public void serverStarted() {
+    public void serverStarted(boolean dedicatedServer) {
         service.warmUp();
 
-        if (config.crashWatch) {
+        // Only a dedicated server announces crashes. The integrated server of a
+        // singleplayer world shares the game directory with the client, so it
+        // found the CLIENT's crash reports, wrote them to a console nobody reads
+        // and marked them reported - and the offer on the title screen never saw
+        // them. The client has its own check, clientStarted().
+        if (dedicatedServer && config.crashWatch) {
             announceCrashes();
+        }
+    }
+
+    /**
+     * The game client has started. Records this session and, off the game
+     * thread, works out what the last one left behind.
+     *
+     * <p>Completes with an empty offer when the crash watch is turned off.
+     */
+    public CompletableFuture<ClientCrashCheck.Offer> clientStarted() {
+        long pid = ProcessHandle.current().pid();
+
+        return CompletableFuture.supplyAsync(() -> {
+            ClientCrashCheck.Offer offer = clientCrashCheck.start(pid, Instant.now());
+            return config.crashWatch ? offer : new ClientCrashCheck.Offer(List.of(), offer.abnormalExit());
+        }, task -> Thread.ofVirtual().name("alalogger-crash-check").start(task));
+    }
+
+    /** The offer was on screen: do not show the same files again. */
+    public void crashOfferShown(ClientCrashCheck.Offer offer) {
+        clientCrashCheck.shown(offer);
+    }
+
+    /** The game client is closing normally. */
+    public void clientStopping() {
+        clientCrashCheck.stopped();
+    }
+
+    private static Path temporaryDirectory() {
+        String value = System.getProperty("java.io.tmpdir");
+        try {
+            return value == null || value.isBlank() ? null : Path.of(value);
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 

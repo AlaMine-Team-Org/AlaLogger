@@ -71,5 +71,21 @@
   "redaction.token": "세션 토큰",
   "redaction.secret": "키와 비밀번호",
   "redaction.seed": "월드 시드",
-  "redaction.memdump": "메모리 덤프"
+  "redaction.memdump": "메모리 덤프",
+  "client_crash.notice": "지난 게임이 충돌했습니다. 로그를 공유할까요?",
+  "client_crash.toast": "지난 게임이 충돌했습니다. Ala Logger가 충돌 기록을 업로드할 수 있습니다.",
+  "client_crash.notice.hint": "충돌이 남긴 파일을 엽니다. 클릭하기 전에는 아무것도 업로드되지 않습니다.",
+  "client_crash.title": "지난 게임이 충돌했습니다",
+  "client_crash.intro": "충돌로 다음 파일이 남았습니다. 하나를 업로드하면 버그 신고나 지원 채팅용 짧은 링크를 받을 수 있습니다.",
+  "client_crash.no_report": "충돌 보고서 없이 게임이 종료되었습니다. 이것은 그 세션의 로그입니다.",
+  "client_crash.privacy": "전송하기 전에 IP 주소, 계정 이름, 세션 토큰이 제거됩니다.",
+  "client_crash.upload": "업로드",
+  "client_crash.uploading": "업로드 중...",
+  "client_crash.copy": "링크 복사",
+  "client_crash.open": "브라우저에서 열기",
+  "client_crash.discord": "Discord용으로 복사",
+  "client_crash.discord.hint": "지원 채팅에 바로 붙여 넣을 메시지를 복사합니다: 링크, 버전, 처음 발견된 문제.",
+  "client_crash.discord.text": "Minecraft 충돌: {url} (Minecraft {mc}, {loader}, Ala Logger {version})",
+  "client_crash.close": "닫기",
+  "client_crash.copied": "복사됨"
 }
