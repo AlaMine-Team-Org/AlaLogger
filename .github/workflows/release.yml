@@ -405,9 +405,9 @@ jobs:
       # 1009, so that type is excluded and exactly one match is required. The one
       # id known to be right is also held against the lookup, so a change in how
       # the API answers is caught on a version where the answer is known.
-      # Fabric and the environments are fixed ids; NeoForge and Forge are
-      # resolved by name because the NeoForge id has moved before. Both names
-      # are matched exactly and must match once: "Forge" is a substring of
+      # Fabric and the environments are fixed ids; NeoForge, Forge and Quilt are
+      # resolved by name because the NeoForge id has moved before. Forge and
+      # Quilt are matched exactly and must match once: "Forge" is a substring of
       # "NeoForge", and a loose match would label one loader as the other. Everything is verified against the API
       # before any upload, and also in a dry run, where it is the whole point.
       - name: Resolve the CurseForge version ids
@@ -470,9 +470,20 @@ jobs:
             echo "  Forge resolved to id $FORGE_ID"
           fi
 
+          # Quilt Loader runs the Fabric jar, so the Fabric file is labelled Quilt
+          # as well; there is no Quilt build. Matched exactly and once, like Forge.
+          quilt=$(jq -c '[.[] | select(.name == "Quilt") | .id]' cf_versions.json)
+          if [ "$(printf '%s' "$quilt" | jq 'length')" -ne 1 ]; then
+            echo "::error::CurseForge has $quilt for the name 'Quilt' - expected exactly one."
+            fail=1
+          else
+            QUILT_ID=$(printf '%s' "$quilt" | jq '.[0]')
+            echo "  Quilt resolved to id $QUILT_ID"
+          fi
+
           [ "$fail" -eq 0 ] || exit 1
 
-          echo "fabric_ids=[$MC_ID, $FABRIC_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
+          echo "fabric_ids=[$MC_ID, $FABRIC_ID, $QUILT_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
           echo "neoforge_ids=[$MC_ID, $NEOFORGE_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
           echo "forge_ids=[$MC_ID, $FORGE_ID, $CLIENT_ID, $SERVER_ID]" >> "$GITHUB_OUTPUT"
 

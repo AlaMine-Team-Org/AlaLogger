@@ -49,15 +49,23 @@ bash "$(dirname "$0")/notes-for-loader.sh" "$LOADER" NOTES.md > "$LOADER_NOTES" 
 
 # Fabric API (P7dR8mSH) is a hard dependency of the Fabric build and irrelevant to
 # the NeoForge and Forge ones, which is the whole reason these are separate versions.
+#
+# The Fabric jar also runs on Quilt, which uses the same Fabric API, so the Fabric
+# version is tagged quilt too. Modrinth does not show Fabric files to Quilt
+# instances on its own; without the tag a Quilt player never finds the mod. The
+# version number keeps +fabric: it names the build, and reruns look it up.
 case "$LOADER" in
     fabric)
         DEPENDENCIES='[{"project_id": "P7dR8mSH", "dependency_type": "required"}]'
+        LOADERS='["fabric", "quilt"]'
         NAME="Ala Logger $VERSION-mc$MC [Fabric]" ;;
     neoforge)
         DEPENDENCIES='[]'
+        LOADERS='["neoforge"]'
         NAME="Ala Logger $VERSION-mc$MC [NeoForge]" ;;
     forge)
         DEPENDENCIES='[]'
+        LOADERS='["forge"]'
         NAME="Ala Logger $VERSION-mc$MC [Forge]" ;;
 esac
 
@@ -68,7 +76,7 @@ DATA=$(jq -n \
     --rawfile changelog "$LOADER_NOTES" \
     --arg project_id "$MODRINTH_PROJECT" \
     --arg game_version "$MC" \
-    --arg loader "$LOADER" \
+    --argjson loaders "$LOADERS" \
     --argjson dependencies "$DEPENDENCIES" \
     '{
       name: $name,
@@ -77,7 +85,7 @@ DATA=$(jq -n \
       dependencies: $dependencies,
       game_versions: [$game_version],
       version_type: $version_type,
-      loaders: [$loader],
+      loaders: $loaders,
       featured: false,
       status: "listed",
       project_id: $project_id,

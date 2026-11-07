@@ -4,14 +4,14 @@
 // only thing standing between that and two mods sharing a name is a rule nobody
 // can see: a loader module holds an adapter, never behaviour. Rules nobody can
 // see are followed until the day they are not, and the failure is silent — the
-// jar builds, the tests pass, and one of the two loaders quietly has a fix the
-// other does not.
+// jar builds, the tests pass, and one of the three loaders quietly has a fix the
+// others do not.
 //
 // So the rule is checked instead of remembered. Three questions, all cheap:
 //
 //   1. does each entrypoint perform the same shared steps, in the same order?
 //      A missing one is a wiring that was never connected on that loader.
-//   2. does either entrypoint do work that belongs in `common`?
+//   2. does any entrypoint do work that belongs in `common`?
 //      Finding Config.load() here means the sequence was reimplemented.
 //   3. do they declare the same number of methods?
 //      A private helper added to one side is how the divergence starts.

@@ -65,6 +65,13 @@ cheats on; the crash offer on the title screen needs no command at all.
 Minecraft **26.3 and 26.2**, for **Fabric, NeoForge and Forge** — six jars from
 one source and one version number, all six verified on a running server.
 
+**Quilt** runs the Fabric jar: there is no separate Quilt build, and the Fabric
+files are published for Quilt as well. It needs Quilt Loader 0.30.2 or newer and
+the regular Fabric API (QFAPI and QSL are not made for Minecraft 26.x). The
+Fabric jar is checked on a real Quilt server for both game versions, and a
+repository check refuses a Fabric Loader requirement newer than the one Quilt
+provides.
+
 The shared code is split so that adding a platform is a thin adapter rather than
 a rewrite: everything a player interacts with lives in `common` and `common-mc`,
 compiled from the same source by each loader, and a loader module is an
